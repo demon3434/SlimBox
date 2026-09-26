@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SlimBox - 低功耗 ARM 极简极致视频压缩</title>
+  <meta name="description" content="专为斐讯N1、树莓派等低功耗ARM设备打造的轻量高效电影电视剧视频压缩服务">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Top System Header Bar -->
+    <header class="top-nav">
+      <div class="brand">
+        <div class="logo-icon">⚡</div>
+        <div class="brand-text">
+          <h1>SlimBox</h1>
+          <span class="subtext">ARM 极致压缩微服务</span>
+        </div>
+      </div>
+
+      <!-- Hardware Resource Monitors -->
+      <div class="stats-panel" id="statsPanel">
+        <div class="stat-pill" title="ARM CPU 负载状态">
+          <span class="pill-dot cpu-dot"></span>
+          <span class="pill-label">CPU:</span>
+          <span class="pill-val" id="statCpu">--%</span>
+        </div>
+        <div class="stat-pill" title="系统内存使用">
+          <span class="pill-dot mem-dot"></span>
+          <span class="pill-label">RAM:</span>
+          <span class="pill-val" id="statMem">-- MB</span>
+        </div>
+        <div class="stat-pill disk-pill" title="外挂 USB 硬盘剩余容量">
+          <span class="pill-dot disk-dot"></span>
+          <span class="pill-label">USB存储:</span>
+          <span class="pill-val" id="statDisk">-- / --</span>
+          <div class="disk-track">
+            <div class="disk-fill" id="statDiskBar" style="width: 0%"></div>
+          </div>
+        </div>
+        <button class="icon-btn" id="openSettingsBtn" title="存储生命周期设置">⚙️</button>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <!-- Left Column: Upload, Probe & Parameter Configuration -->
+      <section class="config-section">
+        <!-- 1. Upload Box -->
+        <div class="card upload-card">
+          <div class="card-header">
+            <h2>1. 上传或选择视频</h2>
+            <span class="badge">USB 暂存</span>
+          </div>
+          
+          <div class="drop-zone" id="dropZone">
+            <input type="file" id="fileInput" accept="video/*,.mkv,.mp4,.avi,.mov,.flv,.ts" multiple style="display:none;">
+            <div class="drop-icon">🎬</div>
+            <p class="drop-title">拖拽视频文件至此，或 <span class="drop-browse">点击浏览文件</span></p>
+            <p class="drop-hint">支持 MKV, MP4, TS, AVI 等主流电影电视剧原片格式</p>
+            <div class="upload-progress-container" id="uploadProgressContainer" style="display: none;">
+              <div class="upload-progress-bar" id="uploadProgressBar"></div>
+              <span class="upload-progress-text" id="uploadProgressText">上传中 0%</span>
+            </div>
+          </div>
+
+          <!-- Media Probe Card (appears after probe) -->
+          <div class="probe-card" id="probeCard" style="display: none;">
+            <div class="probe-header">
+              <span class="probe-title">📊 源文件媒体流参数探测 (FFprobe)</span>
+              <span class="probe-filename" id="probeFileName">filename.mkv</span>
+            </div>
+            <div class="probe-grid">
+              <div class="probe-item">
+                <span class="k">视频编码</span>
+                <span class="v" id="probeVideoCodec">--</span>
+              </div>
+              <div class="probe-item">
+                <span class="k">源分辨率</span>
+                <span class="v" id="probeResolution">--</span>
+              </div>
+              <div class="probe-item">
+                <span class="k">时长 / 帧率</span>
+                <span class="v" id="probeFpsDuration">--</span>
+              </div>
+              <div class="probe-item">
+                <span class="k">源文件体积</span>
+                <span class="v" id="probeSize">--</span>
+              </div>
+            </div>
+            <!-- Audio Tracks & Subtitles summary -->
+            <div class="tracks-summary" id="probeTracksSummary">
+              <div class="tracks-badge audio-badge" id="probeAudioSummary">🎵 音频轨: --</div>
+              <div class="tracks-badge sub-badge" id="probeSubtitleSummary">💬 字幕轨: --</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Compression Parameters Panel -->
+        <div class="card param-card">
+          <div class="card-header">
+            <h2>2. 压缩参数配置</h2>
+            <span class="selection-notice" id="selectionNotice">⚠️ 请自主选择一个档位 (ADR-0003)</span>
+          </div>
+
+          <div class="tabs">
+            <button class="tab-btn active" id="tabPresetBtn">全分辨率预设矩阵 (小白推荐)</button>
+            <button class="tab-btn" id="tabAdvancedBtn">高级自定义调参画布 (专家模式)</button>
+          </div>
+
+          <!-- Preset Matrix View -->
+          <div class="tab-pane active" id="panePreset">
+            <div class="codec-quick-toggle">
+              <span class="toggle-label">基准视频编码:</span>
+              <label class="radio-label">
+                <input type="radio" name="baseCodec" value="libx265" checked id="codecH265">
+                <span class="radio-custom"></span>
+                <strong>H.265 (HEVC)</strong>
+                <span class="tag-default">默认·极致小体积</span>
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="baseCodec" value="libx264" id="codecH264">
+                <span class="radio-custom"></span>
+                <strong>H.264 (AVC)</strong>
+                <span class="tag-speed">速度更快</span>
+              </label>
+            </div>
+
+            <!-- Grid of 6 resolution cards (360p to 4K) -->
+            <div class="profile-grid" id="profileGrid">
+              <!-- Dynamically populated by app.js -->
+            </div>
+
+            <div class="preset-rule-notice">
+              <span>📌 <strong>策略已生效</strong>：所有音频流全部保留并转为 AAC (ADR-0010)；内嵌软字幕全部直通保留 (ADR-0010)。</span>
+            </div>
+          </div>
+
+          <!-- Advanced Canvas View -->
+          <div class="tab-pane" id="paneAdvanced" style="display: none;">
+            <div class="advanced-grid">
+              <div class="field-group">
+                <label>目标分辨率</label>
+                <select id="advRes" class="ctrl-select">
+                  <option value="original">保持原分辨率</option>
+                  <option value="4k">4K (3840x2160)</option>
+                  <option value="2k">2K (2560x1440)</option>
+                  <option value="1080p">1080p (1920x1080)</option>
+                  <option value="720p">720p (1280x720)</option>
+                  <option value="480p">480p (854x480)</option>
+                  <option value="360p">360p (640x360)</option>
+                </select>
+              </div>
+
+              <div class="field-group">
+                <label>编码格式</label>
+                <select id="advCodec" class="ctrl-select">
+                  <option value="libx265">libx265 (HEVC 极小体积)</option>
+                  <option value="libx264">libx264 (AVC 兼容快编)</option>
+                  <option value="copy">copy (视频流直接复制)</option>
+                </select>
+              </div>
+
+              <div class="field-group">
+                <label>CRF 质量因子: <strong id="crfValLabel">24</strong> <span class="hint">(值越大文件越小，18-30)</span></label>
+                <input type="range" id="advCRF" min="16" max="32" value="24" class="ctrl-slider">
+              </div>
+
+              <div class="field-group">
+                <label>编码速度预设 (Preset)</label>
+                <select id="advPreset" class="ctrl-select">
+                  <option value="ultrafast">ultrafast (最快/体积偏大)</option>
+                  <option value="superfast">superfast</option>
+                  <option value="veryfast">veryfast (推荐 N1)</option>
+                  <option value="faster">faster</option>
+                  <option value="fast" selected>fast (均衡推荐)</option>
+                  <option value="medium">medium (压制更慢体积更小)</option>
+                  <option value="slow">slow (极致微缩/算力极高)</option>
+                </select>
+              </div>
+
+              <div class="field-group">
+                <label>音频处理策略</label>
+                <select id="advAudioPolicy" class="ctrl-select">
+                  <option value="all_aac" selected>全音轨保留并压为 AAC (ADR-0010)</option>
+                  <option value="copy_all">全音轨直通 copy (保留原音频码率)</option>
+                  <option value="first_aac">仅保留首条音轨转 AAC (极致小体积)</option>
+                </select>
+              </div>
+
+              <div class="field-group">
+                <label>音频目标码率</label>
+                <select id="advAudioBitrate" class="ctrl-select">
+                  <option value="64k">64 kbps (极限微缩)</option>
+                  <option value="96k">96 kbps (剧集够用)</option>
+                  <option value="128k" selected>128 kbps (标准立体声)</option>
+                  <option value="160k">160 kbps</option>
+                  <option value="192k">192 kbps (高保真)</option>
+                </select>
+              </div>
+
+              <div class="field-group">
+                <label>字幕流处理</label>
+                <select id="advSubtitlePolicy" class="ctrl-select">
+                  <option value="copy_all" selected>保留全部软字幕 (copy, 零画质损耗)</option>
+                  <option value="drop">丢弃所有字幕</option>
+                </select>
+              </div>
+
+              <div class="field-group full-width">
+                <label>原生 FFmpeg 附加参数 <span class="hint">(可选，供极客微调)</span></label>
+                <input type="text" id="advExtra" class="ctrl-input" placeholder="例如: -tune animation -pix_fmt yuv420p">
+              </div>
+            </div>
+          </div>
+
+          <!-- Submit Action -->
+          <div class="submit-action-bar">
+            <button class="btn btn-primary btn-large" id="submitQueueBtn" disabled>
+              🚀 加入转码执行队列
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Live Pipeline, Execution Queue & History -->
+      <section class="pipeline-section">
+        <!-- Live Transcoding Hero Card -->
+        <div class="card active-task-card" id="activeTaskCard">
+          <div class="card-header">
+            <div class="pulse-indicator">
+              <span class="live-dot"></span>
+              <h2>正在转码 (1/1 串行独占)</h2>
+            </div>
+            <span class="hardware-safe-badge">ARM 保护已锁定</span>
+          </div>
+
+          <div id="noActiveTaskMsg" class="empty-state">
+            <div class="empty-icon">☕</div>
+            <p>转码执行器当前空闲，随时可提交新任务</p>
+          </div>
+
+          <div id="activeTaskContent" style="display: none;">
+            <div class="active-title-row">
+              <span class="active-task-name" id="activeTaskFileName">--</span>
+              <span class="active-profile-badge" id="activeTaskProfile">--</span>
+            </div>
+
+            <!-- Big Glowing Progress Bar -->
+            <div class="meter-container">
+              <div class="meter-bar" id="activeProgressBar" style="width: 0%;"></div>
+            </div>
+
+            <div class="active-metrics-grid">
+              <div class="metric-cell">
+                <span class="metric-label">完成进度</span>
+                <span class="metric-value accent" id="activeProgressPct">0.0%</span>
+              </div>
+              <div class="metric-cell">
+                <span class="metric-label">当前速度 / FPS</span>
+                <span class="metric-value" id="activeSpeedFps">-- fps (--x)</span>
+              </div>
+              <div class="metric-cell">
+                <span class="metric-label">已转时长</span>
+                <span class="metric-value" id="activeTime">00:00:00</span>
+              </div>
+              <div class="metric-cell">
+                <span class="metric-label">剩余时间预估 (ETA)</span>
+                <span class="metric-value" id="activeETA">计算中...</span>
+              </div>
+            </div>
+
+            <!-- Critical Abort Action Button (ADR-0008, ADR-0011) -->
+            <div class="active-actions">
+              <button class="btn btn-danger" id="abortActiveBtn">
+                ⏹ 终止当前任务 (清理残片)
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Waiting Queue -->
+        <div class="card queue-card">
+          <div class="card-header">
+            <h3>⏳ 排队等待列表 (<span id="queueCount">0</span>)</h3>
+            <button class="btn btn-sm btn-ghost" id="refreshQueueBtn">刷新</button>
+          </div>
+          <div class="task-list" id="queueList">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+
+        <!-- Completed History -->
+        <div class="card history-card">
+          <div class="card-header">
+            <h3>✅ 已完成任务 (<span id="historyCount">0</span>)</h3>
+          </div>
+          <div class="task-list" id="historyList">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Storage Settings Modal -->
+    <div class="modal" id="settingsModal" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>⚙️ 存储生命周期管理 (ADR-0004)</h3>
+          <button class="close-btn" id="closeSettingsBtn">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="toggle-row">
+            <div>
+              <strong class="toggle-title">转码成功后自动删除源文件</strong>
+              <p class="toggle-desc">原片压缩完毕后物理删除上传的源视频，极大节约 USB 硬盘空间</p>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="setDeleteSource">
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+          <div class="toggle-row">
+            <div>
+              <strong class="toggle-title">下载完成后自动删除压缩成品</strong>
+              <p class="toggle-desc">当通过 Web 或 CLI 完全下载文件后，自动释放 N1 上的存储占用</p>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="setDeleteOutput">
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+          <div class="input-row">
+            <label>未下载成品自动保留时长 (小时，0 为永久保留)</label>
+            <input type="number" id="setRetention" min="0" max="720" value="0" class="ctrl-input">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-primary" id="saveSettingsBtn">保存设置</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

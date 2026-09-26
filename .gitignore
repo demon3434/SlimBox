@@ -1,0 +1,14 @@
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+/data
+*.db
+*.db-wal
+*.db-shm
+.slimbox-state.json
+node_modules/
+
