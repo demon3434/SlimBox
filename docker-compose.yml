@@ -9,11 +9,10 @@ services:
     container_name: slimbox
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "8083:8080"
     volumes:
-      # 将宿主机挂载的物理 USB 外接硬盘映射到容器内部的 /data 目录 (ADR-0001)
-      # 示例: 斐讯 N1 上 USB 硬盘自动挂载在 /media/usb 或 /mnt/sda1
-      - /mnt/usb_disk:/data
+      # 持久化数据目录 (ADR-0001)
+      - /opt/docker/slimbox/data:/data
     environment:
       - TZ=Asia/Shanghai
       - PORT=8080

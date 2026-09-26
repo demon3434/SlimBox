@@ -1,10 +1,12 @@
 # Multi-stage Dockerfile for SlimBox
 # Fully supports linux/arm64 (Phicomm N1, Raspberry Pi 3/4/5) and linux/amd64
 
-# Stage 1: Build binaries with pure Go (zero CGO required)
-FROM golang:1.22-alpine AS builder
+FROM golang:alpine AS builder
 
 WORKDIR /build
+
+ENV GOPROXY=https://goproxy.cn,direct \
+    GOTOOLCHAIN=auto
 
 # Copy dependency manifests
 COPY go.mod go.sum* ./
@@ -13,12 +15,17 @@ RUN go mod download
 # Copy source tree
 COPY . .
 
+RUN go mod tidy
+
 # Compile server and CLI with CGO_ENABLED=0 for maximum portability
 RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /build/slimbox ./cmd/slimbox
 RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /build/slimbox-cli ./cmd/slimbox-cli
 
 # Stage 2: Minimal runtime image with FFmpeg
 FROM alpine:3.20
+
+# Use fast mirror for apk in China
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 
 # Install FFmpeg and essential utilities
 RUN apk add --no-cache \
