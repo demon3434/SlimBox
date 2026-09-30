@@ -3,6 +3,8 @@ package repository
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"path/filepath"
 	"time"
 
 	"slimbox/internal/domain"
@@ -26,15 +28,15 @@ func (r *TaskRepository) Create(task *domain.Task) error {
 		id, source_file_name, source_file_path, source_file_size,
 		output_file_name, output_file_path, output_file_size,
 		status, media_info_json, params_json, progress_json,
-		error_msg, download_count, created_at, started_at, completed_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+		error_msg, download_count, priority, created_at, started_at, completed_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 	`
 	_, err := r.db.SQL.Exec(
 		query,
 		task.ID, task.SourceFileName, task.SourceFilePath, task.SourceFileSize,
 		task.OutputFileName, task.OutputFilePath, task.OutputFileSize,
 		task.Status, string(mediaJSON), string(paramsJSON), string(progJSON),
-		task.ErrorMsg, task.DownloadCount, task.CreatedAt, task.StartedAt, task.CompletedAt,
+		task.ErrorMsg, task.DownloadCount, task.Priority, task.CreatedAt, task.StartedAt, task.CompletedAt,
 	)
 	return err
 }
@@ -44,7 +46,7 @@ func (r *TaskRepository) GetByID(id string) (*domain.Task, error) {
 	SELECT id, source_file_name, source_file_path, source_file_size,
 		   output_file_name, output_file_path, output_file_size,
 		   status, media_info_json, params_json, progress_json,
-		   error_msg, download_count, created_at, started_at, completed_at
+		   error_msg, download_count, priority, created_at, started_at, completed_at
 	FROM tasks WHERE id = ?;
 	`
 	row := r.db.SQL.QueryRow(query, id)
@@ -56,10 +58,10 @@ func (r *TaskRepository) GetNextQueued() (*domain.Task, error) {
 	SELECT id, source_file_name, source_file_path, source_file_size,
 		   output_file_name, output_file_path, output_file_size,
 		   status, media_info_json, params_json, progress_json,
-		   error_msg, download_count, created_at, started_at, completed_at
+		   error_msg, download_count, priority, created_at, started_at, completed_at
 	FROM tasks
 	WHERE status = ?
-	ORDER BY created_at ASC
+	ORDER BY priority DESC, created_at ASC
 	LIMIT 1;
 	`
 	row := r.db.SQL.QueryRow(query, domain.StatusQueued)
@@ -79,14 +81,22 @@ func (r *TaskRepository) Update(task *domain.Task) error {
 	UPDATE tasks SET
 		output_file_name = ?, output_file_path = ?, output_file_size = ?,
 		status = ?, media_info_json = ?, params_json = ?, progress_json = ?,
-		error_msg = ?, download_count = ?, started_at = ?, completed_at = ?
+		error_msg = ?, download_count = ?, priority = ?,
+		started_at = CASE
+			WHEN ? IS NOT NULL THEN ?
+			WHEN ? = 'queued' THEN NULL
+			ELSE started_at
+		END,
+		completed_at = ?
 	WHERE id = ?;
 	`
 	_, err := r.db.SQL.Exec(
 		query,
 		task.OutputFileName, task.OutputFilePath, task.OutputFileSize,
 		task.Status, string(mediaJSON), string(paramsJSON), string(progJSON),
-		task.ErrorMsg, task.DownloadCount, task.StartedAt, task.CompletedAt,
+		task.ErrorMsg, task.DownloadCount, task.Priority,
+		task.StartedAt, task.StartedAt, string(task.Status),
+		task.CompletedAt,
 		task.ID,
 	)
 	return err
@@ -130,6 +140,39 @@ func (r *TaskRepository) Delete(id string) error {
 	return err
 }
 
+func (r *TaskRepository) UpdatePriority(id string, priority int) error {
+	query := `UPDATE tasks SET priority = ? WHERE id = ?;`
+	_, err := r.db.SQL.Exec(query, priority, id)
+	return err
+}
+
+func (r *TaskRepository) GetQueuedTasks() ([]*domain.Task, error) {
+	query := `
+	SELECT id, source_file_name, source_file_path, source_file_size,
+		   output_file_name, output_file_path, output_file_size,
+		   status, media_info_json, params_json, progress_json,
+		   error_msg, download_count, priority, created_at, started_at, completed_at
+	FROM tasks
+	WHERE status IN (?, ?, ?)
+	ORDER BY priority DESC, created_at ASC;
+	`
+	rows, err := r.db.SQL.Query(query, domain.StatusQueued, domain.StatusPending, domain.StatusPaused)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tasks []*domain.Task
+	for rows.Next() {
+		task, err := r.scanTask(rows)
+		if err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, task)
+	}
+	return tasks, nil
+}
+
 func (r *TaskRepository) List(statusFilter string, limit, offset int) ([]*domain.Task, int, error) {
 	if limit <= 0 {
 		limit = 50
@@ -140,16 +183,20 @@ func (r *TaskRepository) List(statusFilter string, limit, offset int) ([]*domain
 
 	if statusFilter != "" {
 		countQuery = `SELECT COUNT(*) FROM tasks WHERE status = ?;`
-		listQuery = `
+		orderBy := "created_at DESC"
+		if statusFilter == string(domain.StatusQueued) || statusFilter == string(domain.StatusPending) || statusFilter == string(domain.StatusPaused) {
+			orderBy = "priority DESC, created_at ASC"
+		}
+		listQuery = fmt.Sprintf(`
 		SELECT id, source_file_name, source_file_path, source_file_size,
 			   output_file_name, output_file_path, output_file_size,
 			   status, media_info_json, params_json, progress_json,
-			   error_msg, download_count, created_at, started_at, completed_at
+			   error_msg, download_count, priority, created_at, started_at, completed_at
 		FROM tasks
 		WHERE status = ?
-		ORDER BY created_at DESC
+		ORDER BY %s
 		LIMIT ? OFFSET ?;
-		`
+		`, orderBy)
 		args = append(args, statusFilter)
 	} else {
 		countQuery = `SELECT COUNT(*) FROM tasks;`
@@ -157,9 +204,18 @@ func (r *TaskRepository) List(statusFilter string, limit, offset int) ([]*domain
 		SELECT id, source_file_name, source_file_path, source_file_size,
 			   output_file_name, output_file_path, output_file_size,
 			   status, media_info_json, params_json, progress_json,
-			   error_msg, download_count, created_at, started_at, completed_at
+			   error_msg, download_count, priority, created_at, started_at, completed_at
 		FROM tasks
-		ORDER BY created_at DESC
+		ORDER BY 
+			CASE 
+				WHEN status = 'transcoding' THEN 0 
+				WHEN status = 'queued' THEN 1 
+				WHEN status = 'pending' THEN 2 
+				WHEN status = 'paused' THEN 3
+				ELSE 4 
+			END ASC,
+			priority DESC, 
+			created_at ASC
 		LIMIT ? OFFSET ?;
 		`
 	}
@@ -202,7 +258,7 @@ func (r *TaskRepository) GetExpiredCompleted(retentionHours int) ([]*domain.Task
 	SELECT id, source_file_name, source_file_path, source_file_size,
 		   output_file_name, output_file_path, output_file_size,
 		   status, media_info_json, params_json, progress_json,
-		   error_msg, download_count, created_at, started_at, completed_at
+		   error_msg, download_count, priority, created_at, started_at, completed_at
 	FROM tasks
 	WHERE status = ? AND completed_at IS NOT NULL AND completed_at < ?;
 	`
@@ -236,7 +292,7 @@ func (r *TaskRepository) scanTask(s scannable) (*domain.Task, error) {
 		&task.ID, &task.SourceFileName, &task.SourceFilePath, &task.SourceFileSize,
 		&task.OutputFileName, &task.OutputFilePath, &task.OutputFileSize,
 		&task.Status, &mediaJSON, &paramsJSON, &progJSON,
-		&task.ErrorMsg, &task.DownloadCount, &task.CreatedAt,
+		&task.ErrorMsg, &task.DownloadCount, &task.Priority, &task.CreatedAt,
 		&startedAt, &completedAt,
 	)
 	if err != nil {
@@ -265,3 +321,60 @@ func (r *TaskRepository) scanTask(s scannable) (*domain.Task, error) {
 
 	return &task, nil
 }
+
+// GetAllTrackedFilePaths returns a normalized set of all source and output file paths tracked by tasks.
+func (r *TaskRepository) GetAllTrackedFilePaths() (map[string]struct{}, error) {
+	query := `SELECT source_file_path, output_file_path FROM tasks;`
+	rows, err := r.db.SQL.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	paths := make(map[string]struct{})
+	for rows.Next() {
+		var src, out sql.NullString
+		if err := rows.Scan(&src, &out); err != nil {
+			return nil, err
+		}
+		if src.Valid && src.String != "" {
+			paths[filepath.Clean(src.String)] = struct{}{}
+		}
+		if out.Valid && out.String != "" {
+			paths[filepath.Clean(out.String)] = struct{}{}
+		}
+	}
+	return paths, nil
+}
+
+// GetStalePendingTasks retrieves tasks in pending status that were created before the cutoff duration.
+func (r *TaskRepository) GetStalePendingTasks(staleDuration time.Duration) ([]*domain.Task, error) {
+	if staleDuration <= 0 {
+		return nil, nil
+	}
+	cutoff := time.Now().Add(-staleDuration)
+	query := `
+	SELECT id, source_file_name, source_file_path, source_file_size,
+		   output_file_name, output_file_path, output_file_size,
+		   status, media_info_json, params_json, progress_json,
+		   error_msg, download_count, priority, created_at, started_at, completed_at
+	FROM tasks
+	WHERE status = ? AND created_at < ?;
+	`
+	rows, err := r.db.SQL.Query(query, domain.StatusPending, cutoff)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tasks []*domain.Task
+	for rows.Next() {
+		task, err := r.scanTask(rows)
+		if err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, task)
+	}
+	return tasks, nil
+}
+

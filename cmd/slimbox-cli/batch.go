@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
+	"syscall"
 	"time"
 
 	"slimbox/internal/domain"
@@ -97,6 +100,23 @@ func RunBatch(
 	log.Printf("[Batch] Found %d total files. %d already completed. Profile: %s (%s)",
 		len(filesToProcess), len(state.CompletedFiles), profile, codec)
 
+	var activeStagedTaskID string
+	var mu sync.Mutex
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigChan
+		mu.Lock()
+		tid := activeStagedTaskID
+		mu.Unlock()
+		if tid != "" {
+			fmt.Printf("\n⚠️ 检测到中断信号，正在回滚清理服务端未入队任务 (ID: %s)...\n", tid)
+			_ = client.DeleteTask(tid)
+		}
+		os.Exit(130)
+	}()
+
 	for i, localFile := range filesToProcess {
 		baseName := filepath.Base(localFile)
 		if _, done := state.CompletedFiles[localFile]; done {
@@ -125,15 +145,27 @@ func RunBatch(
 			continue
 		}
 
+		mu.Lock()
+		activeStagedTaskID = task.ID
+		mu.Unlock()
+
 		log.Printf("  -> Uploaded successfully (Task ID: %s)", task.ID)
 
 		// 2. Start compression task
 		log.Printf("  -> Queuing compression with profile [%s]...", profile)
 		_, err = client.StartTask(task.ID, profile, codec)
 		if err != nil {
-			log.Printf("  ❌ Failed to start task: %v", err)
+			log.Printf("  ❌ Failed to start task: %v (automatically rolling back remote unstarted task...)", err)
+			_ = client.DeleteTask(task.ID)
+			mu.Lock()
+			activeStagedTaskID = ""
+			mu.Unlock()
 			continue
 		}
+
+		mu.Lock()
+		activeStagedTaskID = ""
+		mu.Unlock()
 
 		// 3. Poll progress until completion
 		log.Printf("  -> Waiting in queue & transcoding...")
@@ -182,7 +214,7 @@ func RunBatch(
 		origMB := float64(task.SourceFileSize) / 1024 / 1024
 		compMB := float64(completedTask.OutputFileSize) / 1024 / 1024
 		savings := (1.0 - (compMB / origMB)) * 100.0
-		log.Printf("  🎉 Successfully compressed: %.1f MB -> %.1f MB (Savings: %.1f%%)", origMB, compMB, savings)
+		log.Printf("  🎉 Successfully compressed: %.1f MB -> %.1f MB (Savings: %.1f%%⬇)", origMB, compMB, savings)
 
 		// 5. Cleanup server files if requested
 		if deleteServerArtifacts {

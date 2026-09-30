@@ -1,0 +1,243 @@
+/* ==========================================================================
+   SlimBox - Custom Glassmorphic Dialogs (Confirm / Alert) & Toast System
+   ========================================================================== */
+
+.custom-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 1.2rem;
+}
+
+:root.theme-light-warm .custom-dialog-backdrop,
+:root.theme-nordic-cool .custom-dialog-backdrop,
+:root.theme-sakura-peach .custom-dialog-backdrop,
+:root.theme-autumn-maple .custom-dialog-backdrop,
+:root.theme-macaron-pink .custom-dialog-backdrop,
+:root.theme-macaron-blue .custom-dialog-backdrop,
+:root.theme-macaron-green .custom-dialog-backdrop,
+:root.theme-macaron-yellow .custom-dialog-backdrop,
+:root.theme-macaron-purple .custom-dialog-backdrop,
+:root.theme-macaron-orange .custom-dialog-backdrop {
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.custom-dialog-backdrop.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.custom-dialog-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  width: 100%;
+  max-width: 460px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  transform: scale(0.92) translateY(12px);
+  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.custom-dialog-backdrop.active .custom-dialog-box {
+  transform: scale(1) translateY(0);
+}
+
+.custom-dialog-header {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 1.3rem 1.4rem 0.6rem 1.4rem;
+  position: relative;
+}
+
+.custom-dialog-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.custom-dialog-icon.danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--accent-danger);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.2);
+}
+
+.custom-dialog-icon.warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--accent-amber);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.2);
+}
+
+.custom-dialog-icon.info {
+  background: rgba(2, 132, 199, 0.15);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(2, 132, 199, 0.35);
+  box-shadow: 0 0 12px rgba(2, 132, 199, 0.2);
+}
+
+.custom-dialog-icon.success {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--accent-emerald);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.2);
+}
+
+.custom-dialog-title {
+  font-size: 1.08rem;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.35;
+  flex: 1;
+}
+
+.custom-dialog-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.15rem;
+  cursor: pointer;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+
+.custom-dialog-close:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-main);
+}
+
+.custom-dialog-body {
+  padding: 0.6rem 1.4rem 1.3rem 1.4rem;
+  font-size: 0.92rem;
+  color: var(--text-muted);
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.custom-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  padding: 0.85rem 1.4rem;
+  background: var(--bg-input);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.custom-dialog-footer button {
+  min-width: 80px;
+  height: 34px;
+  padding: 0 1.1rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition);
+  box-shadow: none;
+  background-image: none !important;
+}
+
+.custom-dialog-footer .btn-secondary {
+  background: var(--bg-card);
+  color: var(--text-main);
+  border: 1px solid var(--border-subtle);
+}
+
+.custom-dialog-footer .btn-secondary:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--text-muted);
+}
+
+/* Toast Notifications */
+.custom-toast-container {
+  position: fixed;
+  top: 1.5rem;
+  right: 1.5rem;
+  z-index: 100001;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  pointer-events: none;
+}
+
+.custom-toast-item {
+  pointer-events: auto;
+  min-width: 260px;
+  max-width: 400px;
+  padding: 0.8rem 1.15rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-main);
+  transform: translateY(-14px) scale(0.95);
+  opacity: 0;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+}
+
+.custom-toast-item.active {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+}
+
+.custom-toast-item.hide {
+  transform: translateY(-10px) scale(0.95);
+  opacity: 0;
+}
+
+.custom-toast-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.custom-toast-text {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.custom-toast-item.success {
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.custom-toast-item.warning {
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.custom-toast-item.error {
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.custom-toast-item.info {
+  border-color: var(--accent-cyan);
+}

@@ -1,26 +1,44 @@
-version: '3.8'
-
 services:
   slimbox:
-    image: slimbox:latest
+    image: ${IMAGE_TAG:-crpi-tyyqcg8a2rpatesk.cn-shanghai.personal.cr.aliyuncs.com/zixidaxian/slimbox:latest}
     build:
       context: .
       dockerfile: Dockerfile
     container_name: slimbox
     restart: unless-stopped
     ports:
-      - "8083:8080"
+      - "${WEB_PORT:-8080}:8080"
     volumes:
-      # 持久化数据目录 (ADR-0001)
-      - /opt/docker/slimbox/data:/data
+      # 1. 数据库与元数据配置：持久化在宿主机系统盘 /opt 子目录下 (slimbox.db)
+      - ${CONFIG_DATA_PATH:-/opt/docker/slimbox/data}:/data
+      # 2. 上传源视频与临时分片：持久化在外置存储 /mnt 子目录下 (uploads/)
+      - ${VIDEO_STORAGE_PATH:-/mnt/usbdata/slimbox}/uploads:/data/uploads
+      # 3. 转码中间残片与成品视频：持久化在外置存储 /mnt 子目录下 (outputs/)
+      - ${VIDEO_STORAGE_PATH:-/mnt/usbdata/slimbox}/outputs:/data/outputs
+    # 显卡硬件加速设备映射
+    # 1. 通用硬件加速：Intel 核显/独显 (QSV/VAAPI) + AMD APU/独显 (VAAPI)
+    #    宿主机有 /dev/dri 时直接挂载生效；自动支持 card0/card1 及多渲染节点 renderD128/renderD129；
+    #    若在无 GPU 的纯软解设备（如纯 CPU VPS 或部分 ARM 开发板）启动报错，可注释掉此段
+    devices:
+      - /dev/dri:/dev/dri
+
+    # 2. NVIDIA 独立显卡用户 (NVENC) 可选配置：
+    #    宿主机需安装 nvidia-container-toolkit，配合 :nvidia 镜像并取消以下注释即可启用：
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
     environment:
-      - TZ=Asia/Shanghai
+      - TZ=${TZ:-Asia/Shanghai}
       - PORT=8080
       - SLIMBOX_DATA_DIR=/data
-      # 可选: 若需要内网密码或外网访问防护，取消以下注释并设置密码 (ADR-0009)
-      # - SLIMBOX_API_KEY=your_secure_password
+      - SLIMBOX_AUTH_ENABLED=${SLIMBOX_AUTH_ENABLED:-false}
+      - SLIMBOX_ADMIN_PASSWORD=${SLIMBOX_ADMIN_PASSWORD:-}
     logging:
       driver: "json-file"
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: ${DOCKER_LOG_MAX_SIZE:-10m}
+        max-file: ${DOCKER_LOG_MAX_FILE:-3}

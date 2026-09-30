@@ -12,39 +12,96 @@ type ProfileRepository struct {
 }
 
 func NewProfileRepository(db *DB) *ProfileRepository {
-	return &ProfileRepository{db: db}
+	repo := &ProfileRepository{db: db}
+	_ = repo.SeedSystemProfiles(domain.GetFactoryPresets())
+	return repo
 }
 
-// GetAll returns all resolution matrix profiles, merged with any user customizations saved in SQLite.
-func (r *ProfileRepository) GetAll() ([]domain.ProfileDefinition, error) {
-	presets := domain.GetFactoryPresets()
-
-	// Query custom profiles
-	rows, err := r.db.SQL.Query(`SELECT name, params_json FROM custom_profiles;`)
+// SeedSystemProfiles seeds or updates the system default profiles in system_profiles.
+func (r *ProfileRepository) SeedSystemProfiles(presets []domain.ProfileDefinition) error {
+	tx, err := r.db.SQL.Begin()
 	if err != nil {
-		return nil, fmt.Errorf("failed to query custom profiles: %w", err)
+		return err
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.Prepare(`
+		INSERT INTO system_profiles (name, label, resolution, params_json, updated_at)
+		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+		ON CONFLICT(name) DO UPDATE SET
+			label = excluded.label,
+			resolution = excluded.resolution,
+			params_json = excluded.params_json,
+			updated_at = CURRENT_TIMESTAMP;
+	`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for _, p := range presets {
+		b, err := json.Marshal(p.DefaultParams)
+		if err != nil {
+			return err
+		}
+		if _, err := stmt.Exec(p.Name, p.Label, p.DefaultParams.TargetResolution, string(b)); err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
+// GetAll returns all resolution matrix profiles from system_profiles, overlaid with user customizations from user_profiles.
+func (r *ProfileRepository) GetAll() ([]domain.ProfileDefinition, error) {
+	// Query user overrides
+	rows, err := r.db.SQL.Query(`SELECT profile_name, params_json FROM user_profiles WHERE token_id = 0;`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query user profiles: %w", err)
 	}
 	defer rows.Close()
 
-	customMap := make(map[string]domain.TranscodeParams)
+	userOverrides := make(map[string]domain.TranscodeParams)
 	for rows.Next() {
 		var name, paramsJSON string
 		if err := rows.Scan(&name, &paramsJSON); err == nil {
 			var p domain.TranscodeParams
 			if err := json.Unmarshal([]byte(paramsJSON), &p); err == nil {
-				customMap[name] = p
+				userOverrides[name] = p
 			}
 		}
 	}
 
+	// Query system_profiles from DB
+	sysRows, err := r.db.SQL.Query(`SELECT name, label, resolution, params_json FROM system_profiles;`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query system profiles: %w", err)
+	}
+	defer sysRows.Close()
+
+	sysMap := make(map[string]domain.TranscodeParams)
+	for sysRows.Next() {
+		var name, label, res, paramsJSON string
+		if err := sysRows.Scan(&name, &label, &res, &paramsJSON); err == nil {
+			var p domain.TranscodeParams
+			if err := json.Unmarshal([]byte(paramsJSON), &p); err == nil {
+				sysMap[name] = p
+			}
+		}
+	}
+
+	presets := domain.GetFactoryPresets()
 	result := make([]domain.ProfileDefinition, len(presets))
 	for i, preset := range presets {
 		p := preset
-		if custom, ok := customMap[preset.Name]; ok {
+		if sysParams, ok := sysMap[preset.Name]; ok {
+			p.DefaultParams = sysParams
+		}
+		if custom, ok := userOverrides[preset.Name]; ok {
 			p.EffectiveParams = custom
 			p.IsCustomized = true
 		} else {
-			p.EffectiveParams = preset.DefaultParams
+			p.EffectiveParams = p.DefaultParams
 			p.IsCustomized = false
 		}
 		result[i] = p
@@ -53,34 +110,50 @@ func (r *ProfileRepository) GetAll() ([]domain.ProfileDefinition, error) {
 	return result, nil
 }
 
-// SaveCustom saves or updates user custom parameters for a profile.
+// SaveCustom saves or updates user custom parameters for a profile in user_profiles.
 func (r *ProfileRepository) SaveCustom(name string, params domain.TranscodeParams) error {
 	paramsJSON, err := json.Marshal(params)
 	if err != nil {
 		return err
 	}
 	query := `
-	INSERT INTO custom_profiles (name, params_json, updated_at)
-	VALUES (?, ?, CURRENT_TIMESTAMP)
-	ON CONFLICT(name) DO UPDATE SET
+	INSERT INTO user_profiles (profile_name, token_id, params_json, updated_at)
+	VALUES (?, 0, ?, CURRENT_TIMESTAMP)
+	ON CONFLICT(profile_name, token_id) DO UPDATE SET
 		params_json = excluded.params_json,
 		updated_at = CURRENT_TIMESTAMP;
 	`
-	_, err = r.db.SQL.Exec(query, name, string(paramsJSON))
-	return err
+	if _, err = r.db.SQL.Exec(query, name, string(paramsJSON)); err != nil {
+		return err
+	}
+
+	// Sync legacy custom_profiles for backwards compatibility
+	_, _ = r.db.SQL.Exec(`
+		INSERT INTO custom_profiles (name, params_json, updated_at)
+		VALUES (?, ?, CURRENT_TIMESTAMP)
+		ON CONFLICT(name) DO UPDATE SET
+			params_json = excluded.params_json,
+			updated_at = CURRENT_TIMESTAMP;
+	`, name, string(paramsJSON))
+
+	return nil
 }
 
-// Reset reverts a profile back to its immutable factory defaults by deleting custom override.
+// Reset reverts a profile back to immutable system default by deleting user override from user_profiles.
 func (r *ProfileRepository) Reset(name string) error {
-	query := `DELETE FROM custom_profiles WHERE name = ?;`
-	_, err := r.db.SQL.Exec(query, name)
-	return err
+	query := `DELETE FROM user_profiles WHERE profile_name = ? AND token_id = 0;`
+	if _, err := r.db.SQL.Exec(query, name); err != nil {
+		return err
+	}
+	_, _ = r.db.SQL.Exec(`DELETE FROM custom_profiles WHERE name = ?;`, name)
+	return nil
 }
 
 // GetEffectiveParams returns the active parameters for a given profile name.
 func (r *ProfileRepository) GetEffectiveParams(name string) (*domain.TranscodeParams, error) {
 	var paramsJSON string
-	err := r.db.SQL.QueryRow(`SELECT params_json FROM custom_profiles WHERE name = ?;`, name).Scan(&paramsJSON)
+	// Check user override
+	err := r.db.SQL.QueryRow(`SELECT params_json FROM user_profiles WHERE profile_name = ? AND token_id = 0;`, name).Scan(&paramsJSON)
 	if err == nil {
 		var custom domain.TranscodeParams
 		if err := json.Unmarshal([]byte(paramsJSON), &custom); err == nil {
@@ -88,7 +161,16 @@ func (r *ProfileRepository) GetEffectiveParams(name string) (*domain.TranscodePa
 		}
 	}
 
-	// Fallback to factory default
+	// Check system profile in DB
+	err = r.db.SQL.QueryRow(`SELECT params_json FROM system_profiles WHERE name = ?;`, name).Scan(&paramsJSON)
+	if err == nil {
+		var sysParams domain.TranscodeParams
+		if err := json.Unmarshal([]byte(paramsJSON), &sysParams); err == nil {
+			return &sysParams, nil
+		}
+	}
+
+	// Fallback to factory default in memory
 	preset := domain.GetPresetByName(name)
 	if preset != nil {
 		cpy := preset.DefaultParams

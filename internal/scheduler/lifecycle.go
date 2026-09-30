@@ -12,16 +12,23 @@ import (
 type LifecycleManager struct {
 	taskRepo     *repository.TaskRepository
 	settingsRepo *repository.SettingsRepository
+	uploadDir    string
 	stopChan     chan struct{}
 }
 
 func NewLifecycleManager(
 	taskRepo *repository.TaskRepository,
 	settingsRepo *repository.SettingsRepository,
+	uploadDirs ...string,
 ) *LifecycleManager {
+	var uDir string
+	if len(uploadDirs) > 0 {
+		uDir = uploadDirs[0]
+	}
 	return &LifecycleManager{
 		taskRepo:     taskRepo,
 		settingsRepo: settingsRepo,
+		uploadDir:    uDir,
 		stopChan:     make(chan struct{}),
 	}
 }
@@ -49,6 +56,15 @@ func (m *LifecycleManager) Stop() {
 }
 
 func (m *LifecycleManager) runCleanupCycle() {
+	// 1. Evict abandoned chunk upload sessions older than 24 hours
+	if m.uploadDir != "" {
+		count, bytes := engine.CleanOrphanTempUploads(m.uploadDir, 24*time.Hour)
+		if count > 0 {
+			log.Printf("[Lifecycle] Periodic sweep cleaned %d abandoned chunk upload sessions (%d bytes)", count, bytes)
+		}
+	}
+
+	// 2. Retention policy cleanup for completed tasks
 	settings, err := m.settingsRepo.GetStorageSettings()
 	if err != nil || settings.RetentionHours <= 0 {
 		return
@@ -73,17 +89,7 @@ func (m *LifecycleManager) runCleanupCycle() {
 }
 
 // HandleDownloadCompleted is triggered when a client successfully downloads a completed video.
-// If DeleteOutputAfterDownload is enabled in settings, the file is immediately removed.
 func (m *LifecycleManager) HandleDownloadCompleted(task *domain.Task) {
 	_ = m.taskRepo.IncrementDownloadCount(task.ID)
-
-	settings, err := m.settingsRepo.GetStorageSettings()
-	if err != nil {
-		return
-	}
-
-	if settings.DeleteOutputAfterDownload && task.OutputFilePath != "" {
-		log.Printf("[Lifecycle] Auto-deleting output file after download for task %s: %s", task.ID, task.OutputFilePath)
-		_ = engine.RemoveFile(task.OutputFilePath)
-	}
 }
+

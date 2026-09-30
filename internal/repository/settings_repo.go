@@ -15,11 +15,11 @@ func NewSettingsRepository(db *DB) *SettingsRepository {
 }
 
 func (r *SettingsRepository) GetStorageSettings() (domain.StorageSettings, error) {
-	// Defaults: delete source after transcode = false, delete output after download = false, retention = 0
+	// Defaults: delete source after transcode = false, retention = 0, threshold = 200MB
 	def := domain.StorageSettings{
 		DeleteSourceAfterTranscode: false,
-		DeleteOutputAfterDownload:  false,
 		RetentionHours:             0,
+		ChunkThresholdMB:           200,
 	}
 
 	var val string
@@ -34,6 +34,9 @@ func (r *SettingsRepository) GetStorageSettings() (domain.StorageSettings, error
 	var s domain.StorageSettings
 	if err := json.Unmarshal([]byte(val), &s); err != nil {
 		return def, nil
+	}
+	if s.ChunkThresholdMB <= 0 {
+		s.ChunkThresholdMB = 200
 	}
 	return s, nil
 }
@@ -50,5 +53,33 @@ func (r *SettingsRepository) SaveStorageSettings(s domain.StorageSettings) error
 	ON CONFLICT(key) DO UPDATE SET value = excluded.value;
 	`
 	_, err = r.db.SQL.Exec(query, string(data))
+	return err
+}
+
+func (r *SettingsRepository) GetGPUSettings() (string, error) {
+	var val string
+	err := r.db.SQL.QueryRow(`SELECT value FROM system_settings WHERE key = 'preferred_gpu';`).Scan(&val)
+	if err == sql.ErrNoRows {
+		return "auto", nil
+	}
+	if err != nil {
+		return "auto", err
+	}
+	if val == "" {
+		return "auto", nil
+	}
+	return val, nil
+}
+
+func (r *SettingsRepository) SaveGPUSettings(pref string) error {
+	if pref == "" {
+		pref = "auto"
+	}
+	query := `
+	INSERT INTO system_settings (key, value)
+	VALUES ('preferred_gpu', ?)
+	ON CONFLICT(key) DO UPDATE SET value = excluded.value;
+	`
+	_, err := r.db.SQL.Exec(query, pref)
 	return err
 }

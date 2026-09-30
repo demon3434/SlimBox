@@ -3,12 +3,12 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"slimbox/internal/domain"
 	"slimbox/internal/engine"
@@ -137,23 +137,44 @@ func (h *TaskHandler) HandleStartTask(w http.ResponseWriter, r *http.Request) {
 			if payload.CustomParams.CRF > 0 {
 				params.CRF = payload.CustomParams.CRF
 			}
+			if payload.CustomParams.Preset != "" {
+				params.Preset = payload.CustomParams.Preset
+			}
 			if payload.CustomParams.AudioBitrate != "" {
 				params.AudioBitrate = payload.CustomParams.AudioBitrate
 			}
+			if payload.CustomParams.AudioCodec != "" {
+				params.AudioCodec = payload.CustomParams.AudioCodec
+			}
+			if payload.CustomParams.AudioTrackPolicy != "" {
+				params.AudioTrackPolicy = payload.CustomParams.AudioTrackPolicy
+			}
+			if payload.CustomParams.SubtitlePolicy != "" {
+				params.SubtitlePolicy = payload.CustomParams.SubtitlePolicy
+			}
+			if payload.CustomParams.FastStart != nil {
+				params.FastStart = payload.CustomParams.FastStart
+			}
+			if payload.CustomParams.KeyframeInterval > 0 {
+				params.KeyframeInterval = payload.CustomParams.KeyframeInterval
+			}
+			if payload.CustomParams.TargetResolution != "" {
+				params.TargetResolution = payload.CustomParams.TargetResolution
+			}
 		}
 	} else {
-		// ADR-0003: System does NOT auto-select a preset; user must provide one
-		WriteJSONError(w, http.StatusBadRequest, "Profile selection is required (ADR-0003)")
-		return
+		// Default to standard 720p profile for one-click startup from task card
+		p, err := h.profileRepo.GetEffectiveParams("720p")
+		if err != nil {
+			WriteJSONError(w, http.StatusBadRequest, "Profile selection is required")
+			return
+		}
+		params = *p
 	}
+	params.VideoCodec = engine.SanitizeVideoCodec(params.VideoCodec)
 
-	// Prepare output filename
-	baseName := strings.TrimSuffix(task.SourceFileName, filepath.Ext(task.SourceFileName))
-	ext := ".mkv" // Default container to safely hold all soft subtitles and multi-audio
-	if strings.ToLower(filepath.Ext(task.SourceFileName)) == ".mp4" && len(task.MediaInfo.SubtitleTracks) == 0 {
-		ext = ".mp4"
-	}
-	outputFileName := fmt.Sprintf("%s_%s_%s%s", baseName, params.ProfileName, task.ID[:6], ext)
+	// Prepare output filename using universal container decision (MP4 with FastStart preferred)
+	outputFileName := engine.GenerateOutputFileName(task.SourceFileName, params.ProfileName, task.ID, task.MediaInfo, params.SubtitlePolicy)
 	task.OutputFileName = outputFileName
 	task.OutputFilePath = filepath.Join(h.outputDir, outputFileName)
 	task.Params = params
@@ -177,16 +198,166 @@ func (h *TaskHandler) HandleAbortTask(w http.ResponseWriter, r *http.Request) {
 	id := extractIDFromPath(r.URL.Path, "/api/v1/tasks/")
 	id = strings.TrimSuffix(id, "/abort")
 
+	actualID := id
+	if id == "active" {
+		actualID = h.queue.GetActiveTaskID()
+	}
+
 	if err := h.queue.AbortTask(id); err != nil {
 		WriteJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	task, _ := h.taskRepo.GetByID(id)
+	var task *domain.Task
+	if actualID != "" {
+		task, _ = h.taskRepo.GetByID(actualID)
+	}
 	WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"success": true,
 		"message": "Task aborted",
 		"task":    task,
+	})
+}
+
+// HandleRetryTask re-queues an aborted or failed task to run again.
+func (h *TaskHandler) HandleRetryTask(w http.ResponseWriter, r *http.Request) {
+	id := extractIDFromPath(r.URL.Path, "/api/v1/tasks/")
+	id = strings.TrimSuffix(id, "/retry")
+
+	task, err := h.taskRepo.GetByID(id)
+	if err != nil || task == nil {
+		WriteJSONError(w, http.StatusNotFound, "Task not found")
+		return
+	}
+
+	if task.Status != domain.StatusAborted && task.Status != domain.StatusFailed {
+		WriteJSONError(w, http.StatusBadRequest, fmt.Sprintf("Cannot retry task in status '%s'", task.Status))
+		return
+	}
+
+	// Verify source file still exists
+	if _, statErr := os.Stat(task.SourceFilePath); statErr != nil {
+		WriteJSONError(w, http.StatusBadRequest, "源文件已不存在，无法重跑，请重新上传")
+		return
+	}
+
+	// Clean partial output file if any
+	engine.CleanupPartialFile(task.OutputFilePath)
+
+	task.Status = domain.StatusQueued
+	task.Priority = 0
+	task.CreatedAt = time.Now()
+	task.ErrorMsg = ""
+	task.Progress = domain.TaskProgress{}
+	task.StartedAt = nil
+	task.CompletedAt = nil
+
+	if err := h.taskRepo.Update(task); err != nil {
+		WriteJSONError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to update task: %v", err))
+		return
+	}
+
+	h.queue.NotifyNewTask()
+
+	WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": "Task re-queued successfully",
+		"task":    task,
+	})
+}
+
+type AdjustPriorityPayload struct {
+	Direction string `json:"direction"` // "up", "down", "top"
+}
+
+// HandleAdjustPriority reorders queued tasks by adjusting their priority.
+func (h *TaskHandler) HandleAdjustPriority(w http.ResponseWriter, r *http.Request) {
+	id := extractIDFromPath(r.URL.Path, "/api/v1/tasks/")
+	id = strings.TrimSuffix(id, "/priority")
+
+	var payload AdjustPriorityPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		WriteJSONError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	queued, err := h.taskRepo.GetQueuedTasks()
+	if err != nil {
+		WriteJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	idx := -1
+	for i, t := range queued {
+		if t.ID == id {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		WriteJSONError(w, http.StatusNotFound, "Task not found in queue")
+		return
+	}
+
+	curTask := queued[idx]
+
+	switch payload.Direction {
+	case "top":
+		maxPrio := 0
+		for _, t := range queued {
+			if t.Priority > maxPrio {
+				maxPrio = t.Priority
+			}
+		}
+		curTask.Priority = maxPrio + 1
+		_ = h.taskRepo.UpdatePriority(curTask.ID, curTask.Priority)
+
+	case "up":
+		if idx > 0 {
+			prevTask := queued[idx-1]
+			if curTask.Priority <= prevTask.Priority {
+				curTask.Priority = prevTask.Priority + 1
+				_ = h.taskRepo.UpdatePriority(curTask.ID, curTask.Priority)
+			} else {
+				curTask.Priority, prevTask.Priority = prevTask.Priority, curTask.Priority
+				_ = h.taskRepo.UpdatePriority(curTask.ID, curTask.Priority)
+				_ = h.taskRepo.UpdatePriority(prevTask.ID, prevTask.Priority)
+			}
+		}
+
+	case "down":
+		if idx < len(queued)-1 {
+			nextTask := queued[idx+1]
+			if curTask.Priority >= nextTask.Priority {
+				curTask.Priority = nextTask.Priority - 1
+				_ = h.taskRepo.UpdatePriority(curTask.ID, curTask.Priority)
+			} else {
+				curTask.Priority, nextTask.Priority = nextTask.Priority, curTask.Priority
+				_ = h.taskRepo.UpdatePriority(curTask.ID, curTask.Priority)
+				_ = h.taskRepo.UpdatePriority(nextTask.ID, nextTask.Priority)
+			}
+		}
+	case "bottom":
+		minPrio := 0
+		for _, t := range queued {
+			if t.Priority < minPrio {
+				minPrio = t.Priority
+			}
+		}
+		curTask.Priority = minPrio - 1
+		_ = h.taskRepo.UpdatePriority(curTask.ID, curTask.Priority)
+
+	default:
+		WriteJSONError(w, http.StatusBadRequest, "Invalid direction: must be 'up', 'down', 'top', or 'bottom'")
+		return
+	}
+
+	h.queue.NotifyNewTask()
+
+	WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"success":  true,
+		"task_id":  curTask.ID,
+		"priority": curTask.Priority,
 	})
 }
 
@@ -250,9 +421,8 @@ func (h *TaskHandler) HandleDownload(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", task.OutputFileName))
 	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Length", strconv.FormatInt(fi.Size(), 10))
 
-	_, _ = io.Copy(w, file)
+	http.ServeContent(w, r, task.OutputFileName, fi.ModTime(), file)
 
 	// Trigger lifecycle hook after download completes (ADR-0004)
 	go h.lifecycle.HandleDownloadCompleted(task)

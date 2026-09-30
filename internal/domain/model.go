@@ -10,6 +10,7 @@ const (
 	StatusPending     TaskStatus = "pending"     // Uploaded, media probed, awaiting user profile selection
 	StatusProbing     TaskStatus = "probing"     // Analyzing media streams via ffprobe
 	StatusQueued      TaskStatus = "queued"      // Submitted with parameters, waiting in serial queue
+	StatusPaused      TaskStatus = "paused"      // Paused by user in queue
 	StatusTranscoding TaskStatus = "transcoding" // Actively transcoding
 	StatusCompleted   TaskStatus = "completed"   // Compression finished successfully
 	StatusFailed      TaskStatus = "failed"      // Transcoding failed, error recorded
@@ -71,7 +72,33 @@ type TranscodeParams struct {
 	AudioBitrate     string `json:"audio_bitrate"`      // "64k", "96k", "128k", "160k", "192k"
 	AudioTrackPolicy string `json:"audio_track_policy"` // "all_aac" (default, ADR-0010) or "first_aac" or "copy_all"
 	SubtitlePolicy   string `json:"subtitle_policy"`    // "copy_all" (default, ADR-0010) or "drop"
-	ExtraArgs        string `json:"extra_args"`         // Optional custom ffmpeg args
+	FastStart        *bool   `json:"faststart,omitempty"`        // Put MOOV atom at front for instant streaming playback (default: true)
+	KeyframeInterval int     `json:"keyframe_interval"`          // Keyframe interval in seconds (default: 2s for fast seek)
+	MaxFPS           int     `json:"max_fps,omitempty"`          // Frame rate cap (e.g. 30, 24; 0 = preserve source)
+	SourceBitrate    int64   `json:"source_bitrate,omitempty"`   // Source video bitrate in bps for ceiling calculation
+	SourceFPS        float64 `json:"source_fps,omitempty"`       // Source video frame rate for smart capping
+	ExtraArgs        string  `json:"extra_args"`                 // Optional custom ffmpeg args
+}
+
+// ShouldFastStart returns whether FastStart (MOOV atom front) is enabled, defaulting to true.
+func (p TranscodeParams) ShouldFastStart() bool {
+	if p.FastStart != nil {
+		return *p.FastStart
+	}
+	return true
+}
+
+// EffectiveMaxFPS returns the configured max FPS ceiling, 0 means unconstrained
+func (p TranscodeParams) EffectiveMaxFPS() int {
+	return p.MaxFPS
+}
+
+// EffectiveKeyframeInterval returns the keyframe interval in seconds, defaulting to 2.
+func (p TranscodeParams) EffectiveKeyframeInterval() int {
+	if p.KeyframeInterval > 0 {
+		return p.KeyframeInterval
+	}
+	return 2
 }
 
 // TaskProgress represents real-time transcoding metrics
@@ -100,6 +127,7 @@ type Task struct {
 	Progress       TaskProgress    `json:"progress"`
 	ErrorMsg       string          `json:"error_msg,omitempty"`
 	DownloadCount  int             `json:"download_count"`
+	Priority       int             `json:"priority"`
 	CreatedAt      time.Time       `json:"created_at"`
 	StartedAt      *time.Time      `json:"started_at,omitempty"`
 	CompletedAt    *time.Time      `json:"completed_at,omitempty"`
@@ -108,8 +136,8 @@ type Task struct {
 // StorageSettings defines configurable storage lifecycle rules (ADR-0004)
 type StorageSettings struct {
 	DeleteSourceAfterTranscode bool `json:"delete_source_after_transcode"`
-	DeleteOutputAfterDownload  bool `json:"delete_output_after_download"`
-	RetentionHours             int  `json:"retention_hours"` // 0 = disabled
+	RetentionHours             int  `json:"retention_hours"`      // 0 = disabled
+	ChunkThresholdMB           int  `json:"chunk_threshold_mb"`   // Default 200MB, <=0 fallback to 200
 }
 
 // ProfileDefinition represents a named preset in the resolution matrix (ADR-0003, ADR-0007)

@@ -5,42 +5,132 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SlimBox - 低功耗 ARM 极简极致视频压缩</title>
   <meta name="description" content="专为斐讯N1、树莓派等低功耗ARM设备打造的轻量高效电影电视剧视频压缩服务">
-  <link rel="stylesheet" href="style.css">
+  <script>
+    (function() {
+      try {
+        var t = localStorage.getItem('slimbox_theme') || 'nordic-cool';
+        document.documentElement.className = 'theme-' + t;
+      } catch (e) {}
+    })();
+  </script>
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="stylesheet" href="css/themes.css?v=20260930_02">
+  <link rel="stylesheet" href="css/base.css?v=20260930_02">
+  <link rel="stylesheet" href="css/header.css?v=20260930_02">
+  <link rel="stylesheet" href="css/config.css?v=20260930_02">
+  <link rel="stylesheet" href="css/tasks.css?v=20260930_02">
+  <link rel="stylesheet" href="css/modals.css?v=20260930_02">
+  <link rel="stylesheet" href="css/dialog.css?v=20260930_02">
+  <link rel="stylesheet" href="style.css?v=20260930_02">
 </head>
 <body>
   <div class="app-layout">
     <!-- Top System Header Bar -->
     <header class="top-nav">
       <div class="brand">
-        <div class="logo-icon">⚡</div>
+        <div class="logo-icon">
+          <img src="logo.png" alt="SlimBox" class="brand-logo-img">
+        </div>
         <div class="brand-text">
           <h1>SlimBox</h1>
-          <span class="subtext">ARM 极致压缩微服务</span>
         </div>
       </div>
 
-      <!-- Hardware Resource Monitors -->
-      <div class="stats-panel" id="statsPanel">
-        <div class="stat-pill" title="ARM CPU 负载状态">
-          <span class="pill-dot cpu-dot"></span>
-          <span class="pill-label">CPU:</span>
-          <span class="pill-val" id="statCpu">--%</span>
-        </div>
-        <div class="stat-pill" title="系统内存使用">
-          <span class="pill-dot mem-dot"></span>
-          <span class="pill-label">RAM:</span>
-          <span class="pill-val" id="statMem">-- MB</span>
-        </div>
-        <div class="stat-pill disk-pill" title="外挂 USB 硬盘剩余容量">
-          <span class="pill-dot disk-dot"></span>
-          <span class="pill-label">USB存储:</span>
-          <span class="pill-val" id="statDisk">-- / --</span>
-          <div class="disk-track">
-            <div class="disk-fill" id="statDiskBar" style="width: 0%"></div>
+      <!-- Top Nav Right: Stats & Action Buttons -->
+      <div class="top-nav-right">
+        <!-- Hardware Resource Monitors & Details Popover -->
+        <div class="stats-panel-wrapper" id="statsPanelWrapper">
+          <div class="stat-summary-card compact-gauges" id="statSummaryCard" title="系统资源监控 (悬停查看全貌)">
+            <div class="metric-col">
+              <span class="metric-label"><span class="pill-dot cpu-dot"></span>CPU</span>
+              <span class="metric-val" id="statCpu">--%</span>
+            </div>
+
+            <div class="metric-divider"></div>
+
+            <div class="metric-col">
+              <span class="metric-label"><span class="pill-dot mem-dot"></span>内存</span>
+              <span class="metric-val" id="statMem">--%</span>
+            </div>
+
+            <div class="metric-divider"></div>
+
+            <div class="metric-col">
+              <span class="metric-label"><span class="pill-dot disk-dot"></span>硬盘</span>
+              <span class="metric-val" id="statDisk">--%</span>
+            </div>
+          </div>
+
+        <!-- Detailed Metrics Popover Dropdown Card -->
+        <div class="stats-popover" id="statsPopover" aria-hidden="true">
+          <div class="popover-header">
+            <span class="popover-title">📊 硬件与运行环境监控详情</span>
+          </div>
+          <div class="popover-body">
+            <!-- Host Section -->
+            <div class="popover-section">
+              <div class="popover-sec-title">🖥️ 物理宿主机 (Host Machine)</div>
+              <div class="popover-list">
+                <div class="popover-row">
+                  <span class="popover-label">CPU 负载</span>
+                  <span class="popover-value" id="popHostCpu">--% (-- 核活跃)</span>
+                </div>
+                <div class="popover-row">
+                  <span class="popover-label">物理内存</span>
+                  <span class="popover-value" id="popHostMemCombined">-- / -- (--)</span>
+                </div>
+                <div class="popover-row">
+                  <span class="popover-label">硬盘存储</span>
+                  <span class="popover-value" id="popHostDiskCombined">-- / -- (--)</span>
+                </div>
+                <div class="popover-row">
+                  <span class="popover-label">实时网络</span>
+                  <span class="popover-value net-rate" id="popHostNet">
+                    <span class="net-down">↓ -- B/s</span>
+                    <span class="net-sep">|</span>
+                    <span class="net-up">↑ -- B/s</span>
+                  </span>
+                </div>
+                <div class="popover-row">
+                  <span class="popover-label">硬件加速</span>
+                  <span class="popover-value" id="popHardwareAccel" style="color: #34d399; font-weight: 500;">--</span>
+                </div>
+                <div class="popover-row">
+                  <span class="popover-label">局域网地址</span>
+                  <span class="popover-value mono-text" id="popHostIPs" style="color: var(--accent-cyan, #06b6d4);">--</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Container Section -->
+            <div class="popover-section">
+              <div class="popover-sec-title">📦 容器与环境 (Container Environment)</div>
+              <div class="popover-list">
+                <div class="popover-row">
+                  <span class="popover-label">运行环境</span>
+                  <span class="popover-value" id="popContMode">--</span>
+                </div>
+                <div class="popover-row">
+                  <span class="popover-label">内存配额</span>
+                  <span class="popover-value" id="popContMemCombined">--</span>
+                </div>
+                <div class="popover-row">
+                  <span class="popover-label">挂载路径</span>
+                  <span class="popover-value mono-text" id="popStoragePath">--</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-        <button class="icon-btn" id="openSettingsBtn" title="存储生命周期设置">⚙️</button>
       </div>
+
+      <!-- Global Navigation Action Buttons -->
+      <div class="top-nav-actions" id="topNavActions">
+        <button class="icon-btn" id="openSettingsBtn" title="系统与外观设置">⚙️</button>
+        <button class="icon-btn" id="btnCliGuide" title="客户端命令行调用指南 (远程批量压制)">❓</button>
+        <button class="icon-btn icon-btn-logout" id="topNavLogoutBtn" title="退出登录" style="display: none;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg></button>
+      </div>
+    </div>
     </header>
 
     <main class="main-content">
@@ -50,18 +140,34 @@
         <div class="card upload-card">
           <div class="card-header">
             <h2>1. 上传或选择视频</h2>
-            <span class="badge">USB 暂存</span>
           </div>
           
           <div class="drop-zone" id="dropZone">
             <input type="file" id="fileInput" accept="video/*,.mkv,.mp4,.avi,.mov,.flv,.ts" multiple style="display:none;">
             <div class="drop-icon">🎬</div>
             <p class="drop-title">拖拽视频文件至此，或 <span class="drop-browse">点击浏览文件</span></p>
-            <p class="drop-hint">支持 MKV, MP4, TS, AVI 等主流电影电视剧原片格式</p>
+            <p class="drop-hint">支持一次性选择或拖拽多个视频 · 兼容 MKV, MP4, TS, AVI, MOV 等主流格式</p>
             <div class="upload-progress-container" id="uploadProgressContainer" style="display: none;">
               <div class="upload-progress-bar" id="uploadProgressBar"></div>
               <span class="upload-progress-text" id="uploadProgressText">上传中 0%</span>
             </div>
+          </div>
+
+          <!-- Staged Batch Media List Card -->
+          <div class="staged-batch-card" id="stagedBatchCard" style="display: none;">
+            <div class="staged-batch-header">
+              <div class="staged-batch-header-left">
+                <span class="staged-batch-title">📁 本次待配置素材 (<span id="stagedBatchCount">0</span>)</span>
+              </div>
+              <div class="staged-batch-header-actions">
+                <label class="staged-select-all-label" id="lblSelectAllStaged" title="全选或取消全选">
+                  <input type="checkbox" id="chkSelectAllStaged" class="staged-file-chk">
+                  <span id="txtSelectAllStaged">全选</span>
+                </label>
+                <button class="btn btn-sm btn-ghost btn-staged-clear" id="btnClearStagedBatch" title="清空并放弃当前待配置批次">✕ 清空当前批次</button>
+              </div>
+            </div>
+            <div class="staged-batch-list" id="stagedBatchList"></div>
           </div>
 
           <!-- Media Probe Card (appears after probe) -->
@@ -72,35 +178,40 @@
             </div>
             <div class="probe-grid">
               <div class="probe-item">
-                <span class="k">视频编码</span>
+                <span class="k">🎬 视频编码</span>
                 <span class="v" id="probeVideoCodec">--</span>
               </div>
               <div class="probe-item">
-                <span class="k">源分辨率</span>
+                <span class="k">📐 源分辨率</span>
                 <span class="v" id="probeResolution">--</span>
               </div>
               <div class="probe-item">
-                <span class="k">时长 / 帧率</span>
+                <span class="k">⏱️ 时长 / 帧率</span>
                 <span class="v" id="probeFpsDuration">--</span>
               </div>
               <div class="probe-item">
-                <span class="k">源文件体积</span>
+                <span class="k">🎵 音频流轨</span>
+                <span class="v" id="probeAudioSummary" title="音频流编码与声道">--</span>
+              </div>
+              <div class="probe-item">
+                <span class="k">💬 内嵌字幕</span>
+                <span class="v" id="probeSubtitleSummary">--</span>
+              </div>
+              <div class="probe-item">
+                <span class="k">📦 源文件体积</span>
                 <span class="v" id="probeSize">--</span>
               </div>
-            </div>
-            <!-- Audio Tracks & Subtitles summary -->
-            <div class="tracks-summary" id="probeTracksSummary">
-              <div class="tracks-badge audio-badge" id="probeAudioSummary">🎵 音频轨: --</div>
-              <div class="tracks-badge sub-badge" id="probeSubtitleSummary">💬 字幕轨: --</div>
             </div>
           </div>
         </div>
 
         <!-- 2. Compression Parameters Panel -->
         <div class="card param-card">
-          <div class="card-header">
+          <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
             <h2>2. 压缩参数配置</h2>
-            <span class="selection-notice" id="selectionNotice">⚠️ 请自主选择一个档位 (ADR-0003)</span>
+            <div id="workbenchGPUBadge" class="badge-gpu-chip" title="当前转码算力设备 (点击打开系统设置)" style="cursor: pointer; font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 999px; background: rgba(6,182,212,0.12); color: var(--accent-cyan); border: 1px solid rgba(6,182,212,0.3); display: inline-flex; align-items: center; gap: 0.35rem; user-select: none;">
+              <span>⚡</span> <span id="workbenchGPUName">自动优选</span> <span style="font-size: 0.7rem; opacity: 0.75;">⚙️</span>
+            </div>
           </div>
 
           <div class="tabs">
@@ -110,29 +221,62 @@
 
           <!-- Preset Matrix View -->
           <div class="tab-pane active" id="panePreset">
-            <div class="codec-quick-toggle">
+            <div class="codec-quick-toggle" id="codecQuickToggle">
               <span class="toggle-label">基准视频编码:</span>
+              <div id="hwCodecContainer" style="display: contents;"></div>
               <label class="radio-label">
                 <input type="radio" name="baseCodec" value="libx265" checked id="codecH265">
                 <span class="radio-custom"></span>
-                <strong>H.265 (HEVC)</strong>
-                <span class="tag-default">默认·极致小体积</span>
+                <strong>H.265 (CPU)</strong>
+                <span class="tag-default">极致压缩</span>
               </label>
               <label class="radio-label">
                 <input type="radio" name="baseCodec" value="libx264" id="codecH264">
                 <span class="radio-custom"></span>
-                <strong>H.264 (AVC)</strong>
-                <span class="tag-speed">速度更快</span>
+                <strong>H.264 (CPU)</strong>
+                <span class="tag-speed">兼容快速</span>
               </label>
             </div>
+            <script>
+              (function(){
+                try {
+                  var accels = JSON.parse(localStorage.getItem('slimbox_hw_accels') || 'null');
+                  if (!accels || !accels.length) return;
+                  var cMap = {
+                    amf: [{c:'hevc_amf',l:'AMD H.265'},{c:'h264_amf',l:'AMD H.264'}],
+                    nvenc: [{c:'hevc_nvenc',l:'NVIDIA H.265'},{c:'h264_nvenc',l:'NVIDIA H.264'}],
+                    qsv: [{c:'hevc_qsv',l:'Intel H.265'},{c:'h264_qsv',l:'Intel H.264'}],
+                    videotoolbox: [{c:'hevc_videotoolbox',l:'Apple H.265'},{c:'h264_videotoolbox',l:'Apple H.264'}],
+                    vaapi_intel: [{c:'hevc_vaapi',l:'Intel H.265'},{c:'h264_vaapi',l:'Intel H.264'}],
+                    vaapi_amd: [{c:'hevc_vaapi',l:'AMD H.265'},{c:'h264_vaapi',l:'AMD H.264'}],
+                    vaapi: [{c:'hevc_vaapi',l:'Intel H.265'},{c:'h264_vaapi',l:'Intel H.264'}]
+                  };
+                  var saved = localStorage.getItem('slimbox_selected_codec');
+                  var h = '', f = true;
+                  accels.forEach(function(a){
+                    (cMap[a]||[]).forEach(function(x){
+                      var chk = saved ? (saved === x.c) : f;
+                      h += '<label class="radio-label"><input type="radio" name="baseCodec" value="'+x.c+'"'+(chk?' checked':'')+'>' +
+                           '<span class="radio-custom"></span><strong>'+x.l+'</strong>' +
+                           '<span class="tag-speed" style="background:rgba(16,185,129,0.2);color:#34d399;border:1px solid rgba(16,185,129,0.4);white-space:nowrap;">⚡ 硬编</span></label>';
+                      f = false;
+                    });
+                  });
+                  var el = document.getElementById('hwCodecContainer');
+                  if (el && h) {
+                    el.innerHTML = h;
+                    if (!saved || (saved !== 'libx265' && saved !== 'libx264')) {
+                      var h265 = document.getElementById('codecH265');
+                      if (h265) h265.checked = false;
+                    }
+                  }
+                } catch(e){}
+              })();
+            </script>
 
             <!-- Grid of 6 resolution cards (360p to 4K) -->
             <div class="profile-grid" id="profileGrid">
               <!-- Dynamically populated by app.js -->
-            </div>
-
-            <div class="preset-rule-notice">
-              <span>📌 <strong>策略已生效</strong>：所有音频流全部保留并转为 AAC (ADR-0010)；内嵌软字幕全部直通保留 (ADR-0010)。</span>
             </div>
           </div>
 
@@ -155,34 +299,66 @@
               <div class="field-group">
                 <label>编码格式</label>
                 <select id="advCodec" class="ctrl-select">
-                  <option value="libx265">libx265 (HEVC 极小体积)</option>
-                  <option value="libx264">libx264 (AVC 兼容快编)</option>
+                  <option value="hevc_nvenc">hevc_nvenc (NVIDIA 硬件加速 H.265)</option>
+                  <option value="h264_nvenc">h264_nvenc (NVIDIA 硬件加速 H.264)</option>
+                  <option value="hevc_qsv">hevc_qsv (Intel QuickSync H.265)</option>
+                  <option value="h264_qsv">h264_qsv (Intel QuickSync H.264)</option>
+                  <option value="hevc_amf">hevc_amf (AMD AMF 硬件加速 H.265)</option>
+                  <option value="h264_amf">h264_amf (AMD AMF 硬件加速 H.264)</option>
+                  <option value="hevc_vaapi">hevc_vaapi (VAAPI 硬件加速 H.265)</option>
+                  <option value="h264_vaapi">h264_vaapi (VAAPI 硬件加速 H.264)</option>
+                  <option value="hevc_videotoolbox">hevc_videotoolbox (Apple 硬件加速 H.265)</option>
+                  <option value="h264_videotoolbox">h264_videotoolbox (Apple 硬件加速 H.264)</option>
+                  <option value="libx265">libx265 (HEVC CPU 极小体积)</option>
+                  <option value="libx264">libx264 (AVC CPU 兼容快编)</option>
                   <option value="copy">copy (视频流直接复制)</option>
                 </select>
               </div>
 
               <div class="field-group">
-                <label>CRF 质量因子: <strong id="crfValLabel">24</strong> <span class="hint">(值越大文件越小，18-30)</span></label>
+                <label id="advQualityTitle">CRF 质量因子: <strong id="crfValLabel">24</strong> <span class="hint" id="advQualityHint">(值越大文件越小，18-32)</span></label>
                 <input type="range" id="advCRF" min="16" max="32" value="24" class="ctrl-slider">
               </div>
 
-              <div class="field-group">
-                <label>编码速度预设 (Preset)</label>
+              <div class="field-group" id="advPresetGroup">
+                <label id="advPresetTitle">编码速度预设 (Preset)</label>
                 <select id="advPreset" class="ctrl-select">
-                  <option value="ultrafast">ultrafast (最快/体积偏大)</option>
-                  <option value="superfast">superfast</option>
-                  <option value="veryfast">veryfast (推荐 N1)</option>
-                  <option value="faster">faster</option>
-                  <option value="fast" selected>fast (均衡推荐)</option>
-                  <option value="medium">medium (压制更慢体积更小)</option>
-                  <option value="slow">slow (极致微缩/算力极高)</option>
+                  <option value="ultrafast">ultrafast (极速编码 / 体积最大 / 适合快速预览)</option>
+                  <option value="superfast">superfast (超快压制 / 压缩率偏低 / 适合超低功耗设备)</option>
+                  <option value="veryfast">veryfast (较快出片 / 压缩比较好 / 性能与体积优选)</option>
+                  <option value="faster">faster (轻快编码 / 耗时略增 / 画质与速度平衡)</option>
+                  <option value="fast" selected>fast (均衡推荐 / 压缩比优异 / 绝大多数场景首选)</option>
+                  <option value="medium">medium (标准慢压 / 极致紧凑 / 耗时显著增加)</option>
+                  <option value="slow">slow (超慢精压 / 极限微缩 / 高负载极耗算力)</option>
                 </select>
+              </div>
+
+              <div class="field-group">
+                <label>关键帧间隔 (GOP / Keyframe)</label>
+                <select id="advKeyframe" class="ctrl-select">
+                  <option value="2" selected>2 秒 (推荐·流媒体秒开Seek)</option>
+                  <option value="4">4 秒 (平衡·画质体积更优)</option>
+                  <option value="0">0 (跟随编码器默认·极高压缩比)</option>
+                </select>
+              </div>
+
+              <div class="field-group">
+                <label>MOOV Atom 头部前置 (FastStart)</label>
+                <div class="pill-switch-group">
+                  <label class="pill-switch">
+                    <input type="checkbox" id="advFastStart" checked>
+                    <span class="pill-slider"></span>
+                    <span class="pill-label-active">开启</span>
+                    <span class="pill-label-inactive">关闭</span>
+                  </label>
+                  <span class="hint" style="margin-left: 8px;">便于浏览器和播放器边下边播</span>
+                </div>
               </div>
 
               <div class="field-group">
                 <label>音频处理策略</label>
                 <select id="advAudioPolicy" class="ctrl-select">
-                  <option value="all_aac" selected>全音轨保留并压为 AAC (ADR-0010)</option>
+                  <option value="all_aac" selected>全音轨保留并转为 AAC (推荐)</option>
                   <option value="copy_all">全音轨直通 copy (保留原音频码率)</option>
                   <option value="first_aac">仅保留首条音轨转 AAC (极致小体积)</option>
                 </select>
@@ -207,6 +383,16 @@
                 </select>
               </div>
 
+              <div class="field-group">
+                <label>视频帧率控制 (FPS)</label>
+                <select id="advMaxFPS" class="ctrl-select">
+                  <option value="30" selected>智能封顶 30 FPS (推荐·极省硬盘，60帧转30帧)</option>
+                  <option value="0">保持原片帧率 (Original)</option>
+                  <option value="24">锁定 24 FPS (电影胶片质感)</option>
+                  <option value="60">锁定 60 FPS (高动态流畅)</option>
+                </select>
+              </div>
+
               <div class="field-group full-width">
                 <label>原生 FFmpeg 附加参数 <span class="hint">(可选，供极客微调)</span></label>
                 <input type="text" id="advExtra" class="ctrl-input" placeholder="例如: -tune animation -pix_fmt yuv420p">
@@ -216,8 +402,8 @@
 
           <!-- Submit Action -->
           <div class="submit-action-bar">
-            <button class="btn btn-primary btn-large" id="submitQueueBtn" disabled>
-              🚀 加入转码执行队列
+            <button class="btn btn-large" id="submitQueueBtn" disabled>
+              立即转码压缩
             </button>
           </div>
         </div>
@@ -229,10 +415,9 @@
         <div class="card active-task-card" id="activeTaskCard">
           <div class="card-header">
             <div class="pulse-indicator">
-              <span class="live-dot"></span>
-              <h2>正在转码 (1/1 串行独占)</h2>
+              <span class="live-dot" id="activeLiveDot"></span>
+              <h2 id="activeCardTitle">转码执行器 (空闲待命)</h2>
             </div>
-            <span class="hardware-safe-badge">ARM 保护已锁定</span>
           </div>
 
           <div id="noActiveTaskMsg" class="empty-state">
@@ -270,10 +455,16 @@
               </div>
             </div>
 
-            <!-- Critical Abort Action Button (ADR-0008, ADR-0011) -->
-            <div class="active-actions">
-              <button class="btn btn-danger" id="abortActiveBtn">
-                ⏹ 终止当前任务 (清理残片)
+            <!-- Action Buttons (Abort / Run / Delete) -->
+            <div class="active-actions" style="display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center;">
+              <button class="btn btn-secondary btn-sm" id="activeRunBtn" disabled title="当前任务正在转码执行中">
+                ▶️ 运行中
+              </button>
+              <button class="btn btn-danger btn-sm" id="abortActiveBtn" title="强行终止当前任务并清理残片">
+                ⏹ 终止
+              </button>
+              <button class="btn btn-sm btn-del" id="delActiveBtn" title="终止并彻底删除此任务与文件">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m-6 5v6m4-6v6"/></svg>
               </button>
             </div>
           </div>
@@ -282,8 +473,22 @@
         <!-- Waiting Queue -->
         <div class="card queue-card">
           <div class="card-header">
-            <h3>⏳ 排队等待列表 (<span id="queueCount">0</span>)</h3>
-            <button class="btn btn-sm btn-ghost" id="refreshQueueBtn">刷新</button>
+            <div class="card-header-left" style="display: flex; align-items: center; gap: 0.5rem;">
+              <h3>⏳ 排队等待列表 (<span id="queueCount">0</span>)</h3>
+            </div>
+            <div class="card-header-actions" id="queueHeaderActions" style="display: flex; align-items: center; gap: 0.4rem;">
+              <!-- Same-line Batch Controls (Queue) -->
+              <div class="header-batch-controls" id="queueBatchBar" style="display: none;">
+                <label class="task-checkbox-wrap" style="display: inline-flex; padding: 0;" title="全选 / 反选"><input type="checkbox" class="task-checkbox batch-select-all" id="queueSelectAllCheckbox"></label>
+                <span class="batch-count-text">已选 <strong id="queueSelectedCount">0</strong> 项</span>
+                <button class="btn btn-sm btn-ghost" id="queueBatchPauseBtn" title="批量暂停选中的排队任务" style="display: inline-flex; align-items: center; justify-content: center; padding: 0.2rem 0.45rem; font-size: 0.8rem; height: 28px;">⏸ 暂停</button>
+                <button class="btn btn-sm btn-start-icon" id="queueBatchStartBtn" title="批量启动/恢复选中的任务"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M6 4l15 8-15 8V4z"/></svg></button>
+                <button class="btn btn-sm btn-del" id="queueBatchDeleteBtn" title="从队列批量移除任务"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m-6 5v6m4-6v6"/></svg></button>
+              </div>
+
+              <button class="btn btn-sm btn-ghost" id="toggleQueueBatchBtn" title="进入/退出批量操作模式">📋 批量操作</button>
+              <button class="btn btn-sm btn-ghost" id="refreshQueueBtn" title="刷新列表" aria-label="刷新"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button>
+            </div>
           </div>
           <div class="task-list" id="queueList">
             <!-- Populated dynamically -->
@@ -291,59 +496,586 @@
         </div>
 
         <!-- Completed History -->
-        <div class="card history-card">
+        <div class="card history-card" id="historyCard">
           <div class="card-header">
-            <h3>✅ 已完成任务 (<span id="historyCount">0</span>)</h3>
+            <div class="card-header-left" style="display: flex; align-items: center; gap: 0.5rem;">
+              <h3>✅ 已完成任务 (<span id="historyCount">0</span>)</h3>
+            </div>
+            <div class="card-header-actions" id="historyHeaderActions" style="display: flex; align-items: center; gap: 0.4rem;">
+              <!-- Same-line Batch Controls (History) -->
+              <div class="header-batch-controls" id="historyBatchBar" style="display: none;">
+                <label class="task-checkbox-wrap" style="display: inline-flex; padding: 0;" title="全选 / 反选"><input type="checkbox" class="task-checkbox batch-select-all" id="historySelectAllCheckbox"></label>
+                <span class="batch-count-text">已选 <strong id="historySelectedCount">0</strong> 项</span>
+                <button class="btn btn-sm btn-del" id="historyBatchDeleteBtn" title="彻底删除选中的历史记录与文件"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m-6 5v6m4-6v6"/></svg></button>
+              </div>
+
+              <button class="btn btn-sm btn-ghost" id="toggleHistoryBatchBtn" title="进入/退出批量操作模式">📋 批量操作</button>
+              <button class="btn btn-sm btn-ghost" id="btnQuickClearHistory" style="display: none;" title="清空全部历史任务">🧹 清空历史</button>
+            </div>
           </div>
           <div class="task-list" id="historyList">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+
+        <!-- Aborted Tasks -->
+        <div class="card aborted-card" id="abortedCard">
+          <div class="card-header">
+            <div class="card-header-left" style="display: flex; align-items: center; gap: 0.5rem;">
+              <h3><span style="color: var(--accent-danger, #ef4444); font-size: 1.05rem; margin-right: 0.35rem; display: inline-block;">■</span>已终止 / 失败任务 (<span id="abortedCount">0</span>)</h3>
+            </div>
+            <div class="card-header-actions" id="abortedHeaderActions" style="display: flex; align-items: center; gap: 0.4rem;">
+              <!-- Same-line Batch Controls (Aborted) -->
+              <div class="header-batch-controls" id="abortedBatchBar" style="display: none;">
+                <label class="task-checkbox-wrap" style="display: inline-flex; padding: 0;" title="全选 / 反选"><input type="checkbox" class="task-checkbox batch-select-all" id="abortedSelectAllCheckbox"></label>
+                <span class="batch-count-text">已选 <strong id="abortedSelectedCount">0</strong> 项</span>
+                <button class="btn btn-sm btn-start-icon" id="abortedBatchRetryBtn" title="恢复选中任务重新排队转码 (插入队尾)"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M6 4l15 8-15 8V4z"/></svg></button>
+                <button class="btn btn-sm btn-del" id="abortedBatchDeleteBtn" title="彻底删除选中的已终止记录与文件"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m-6 5v6m4-6v6"/></svg></button>
+              </div>
+
+              <button class="btn btn-sm btn-ghost" id="toggleAbortedBatchBtn" title="进入/退出批量操作模式">📋 批量操作</button>
+              <button class="btn btn-sm btn-ghost" id="btnQuickClearAborted" style="display: none;" title="清空全部已终止记录">🧹 清空终止记录</button>
+            </div>
+          </div>
+          <div class="task-list" id="abortedList">
             <!-- Populated dynamically -->
           </div>
         </div>
       </section>
     </main>
 
-    <!-- Storage Settings Modal -->
+    <!-- Multi-View Settings Modal -->
     <div class="modal" id="settingsModal" style="display: none;">
       <div class="modal-content">
         <div class="modal-header">
-          <h3>⚙️ 存储生命周期管理 (ADR-0004)</h3>
-          <button class="close-btn" id="closeSettingsBtn">✕</button>
+          <div class="modal-title-wrap">
+            <button class="modal-back-btn" id="modalBackBtn" style="display: none;" title="返回上一级">‹ 返回</button>
+            <h3 id="settingsModalTitle">⚙️ 系统设置</h3>
+          </div>
+          <button class="close-btn" id="closeSettingsBtn" title="关闭设置">✕</button>
         </div>
-        <div class="modal-body">
-          <div class="toggle-row">
-            <div>
-              <strong class="toggle-title">转码成功后自动删除源文件</strong>
-              <p class="toggle-desc">原片压缩完毕后物理删除上传的源视频，极大节约 USB 硬盘空间</p>
+
+        <div class="settings-views">
+          <!-- 1. Main Directory View -->
+          <div class="settings-view active" id="viewSettingsMain">
+            <div class="settings-menu-list">
+              <div class="settings-menu-item" id="menuItemTheme">
+                <div class="menu-item-info">
+                  <span class="menu-item-title">🎨 个性化主题配色</span>
+                  <span class="menu-item-desc" id="currentThemeDesc">当前：❄️ 极简冷灰 (默认)</span>
+                </div>
+                <span class="menu-item-arrow">›</span>
+              </div>
+
+              <div class="settings-menu-item" id="menuItemGPU">
+                <div class="menu-item-info">
+                  <span class="menu-item-title">⚡ 硬件加速与 GPU 调度</span>
+                  <span class="menu-item-desc" id="currentGPUDesc">当前：自动优选</span>
+                </div>
+                <span class="menu-item-arrow">›</span>
+              </div>
+
+              <div class="settings-menu-item" id="menuItemStorage">
+                <div class="menu-item-info">
+                  <span class="menu-item-title">⚙️ 系统参数</span>
+                  <span class="menu-item-desc">源文件清理、成品保留与分片上传门限</span>
+                </div>
+                <span class="menu-item-arrow">›</span>
+              </div>
+
+              <div class="settings-menu-item" id="menuItemCleanOrphans">
+                <div class="menu-item-info">
+                  <span class="menu-item-title">🧹 存储维护与残留文件清理</span>
+                  <span class="menu-item-desc" id="currentOrphanDesc">扫描并释放传输中断分片及脱节残留视频</span>
+                </div>
+                <span class="menu-item-arrow">›</span>
+              </div>
+
+              <div class="settings-menu-item" id="menuItemAuth">
+                <div class="menu-item-info">
+                  <span class="menu-item-title">🔑 访问控制与 API Key</span>
+                  <span class="menu-item-desc" id="currentAuthDesc">管理 API Key (访问密钥) 及安全状态</span>
+                </div>
+                <span class="menu-item-arrow">›</span>
+              </div>
             </div>
-            <label class="switch">
-              <input type="checkbox" id="setDeleteSource">
-              <span class="slider round"></span>
-            </label>
+
+            <!-- Main Settings View Session Footer -->
+            <div class="settings-session-footer" id="settingsMainSessionBox" style="display: none;">
+              <span class="session-label">当前管理员状态：<strong id="settingsSessionStatus">已登录</strong></span>
+              <button class="btn btn-sm btn-danger" id="btnClearToken">退出登录</button>
+            </div>
           </div>
 
-          <div class="toggle-row">
-            <div>
-              <strong class="toggle-title">下载完成后自动删除压缩成品</strong>
-              <p class="toggle-desc">当通过 Web 或 CLI 完全下载文件后，自动释放 N1 上的存储占用</p>
+          <!-- 2. GPU Settings View (Secondary) -->
+          <div class="settings-view" id="viewSettingsGPU">
+            <div class="modal-body">
+              <div class="input-row">
+                <label>首选算力设备 (Preferred GPU):</label>
+                <select id="selectPreferredGPU" class="ctrl-input" style="width: 100%; margin-top: 0.35rem; padding: 0.5rem; background: var(--bg-input, rgba(0,0,0,0.2)); color: var(--text-primary); border: 1px solid var(--border-subtle); border-radius: 6px;">
+                  <option value="auto">⚡ 自动模式 (按 NVENC > QSV > AMF > VAAPI 优先级自动调度)</option>
+                </select>
+                <p class="toggle-desc" style="margin-top: 0.5rem;">
+                  系统支持多显卡服务器与 Windows/macOS/Linux 原生平台切换。选定设备将持久化并在后续转码中生效。
+                </p>
+              </div>
+
+              <div class="gpu-diagnostic-box" id="gpuDiagnosticBox" style="margin-top: 1rem; padding: 0.75rem; border-radius: 8px; background: rgba(0,0,0,0.15); border: 1px solid var(--border-subtle);">
+                <div style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--accent-cyan);">🔍 探测到的图形加速设备：</div>
+                <div id="gpuDeviceList" style="font-size: 0.8rem; line-height: 1.6; color: var(--text-secondary);">
+                  正在加载显卡列表...
+                </div>
+              </div>
             </div>
-            <label class="switch">
-              <input type="checkbox" id="setDeleteOutput">
-              <span class="slider round"></span>
-            </label>
+            <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+              <button type="button" class="btn btn-ghost btn-sm" id="btnRefreshGPUs" title="重新扫描显卡设备">🔄 刷新设备</button>
+              <button class="btn btn-primary" id="saveGPUSettingsBtn">💾 保存显卡配置</button>
+            </div>
           </div>
 
-          <div class="input-row">
-            <label>未下载成品自动保留时长 (小时，0 为永久保留)</label>
-            <input type="number" id="setRetention" min="0" max="720" value="0" class="ctrl-input">
+          <!-- 3. Theme Selection View (Secondary) -->
+          <div class="settings-view" id="viewSettingsTheme">
+            <p class="view-subtitle">选择喜爱的色彩风格，点击立即生效并自动保存：</p>
+            <div class="theme-grid" id="themeGrid">
+              <!-- Dynamically populated by app.js -->
+            </div>
           </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-primary" id="saveSettingsBtn">保存设置</button>
+
+          <!-- 3. Storage Settings View (Secondary) -->
+          <div class="settings-view" id="viewSettingsStorage">
+            <div class="modal-body">
+              <div class="toggle-row">
+                <div>
+                  <strong class="toggle-title">转码成功后自动删除源文件</strong>
+                  <p class="toggle-desc">原片压缩完毕后物理删除上传的源视频，极大节约 USB 硬盘空间</p>
+                </div>
+                <label class="pill-switch">
+                  <input type="checkbox" id="setDeleteSource">
+                  <span class="pill-slider"></span>
+                  <span class="pill-label-active">开启</span>
+                  <span class="pill-label-inactive">关闭</span>
+                </label>
+              </div>
+
+              <div class="input-row">
+                <label>成品文件与任务记录自动保留时长 (小时，0 为永久保留)</label>
+                <input type="number" id="setRetention" min="0" max="720" value="0" class="ctrl-input">
+              </div>
+
+              <div class="input-row">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                  <label style="margin-bottom: 0;">大文件自动分片上传门限 (MB)</label>
+                  <button type="button" class="btn btn-sm btn-ghost" id="btnResetChunkThreshold" style="font-size: 0.75rem; padding: 0.2rem 0.55rem; color: var(--accent-cyan);" title="恢复默认阈值 200MB">🔄 恢复默认 (200MB)</button>
+                </div>
+                <input type="number" id="setChunkThreshold" min="10" max="5000" value="200" class="ctrl-input">
+                <p class="toggle-desc" style="margin-top: 0.35rem;">视频文件超过此门限时自动切分 20MB 分片流式上传并支持断点重试；小于此门限则走高速单次上传。</p>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn btn-primary" id="saveSettingsBtn">💾 保存设置</button>
+            </div>
+          </div>
+
+          <!-- 4. Orphan Cleanup & Storage Maintenance View (Secondary) -->
+          <div class="settings-view" id="viewSettingsOrphans">
+            <div class="modal-body">
+              <div class="orphan-view-intro" style="margin-bottom: 1.25rem;">
+                <p style="font-size: 0.85rem; color: var(--text-dim); line-height: 1.5; margin: 0 0 0.85rem 0;">
+                  当客户端上传大文件发生网络中断、或数据库任务被删除时，磁盘中可能遗留未关联的临时分片或源视频。
+                  本功能将对照数据库索引精准扫描挂载目录，并在管理员确认后物理释放无效占用的磁盘空间。
+                </p>
+                <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-card); padding: 0.85rem 1rem; border-radius: 8px; border: 1px solid var(--border-subtle); flex-wrap: wrap; gap: 10px;">
+                  <div>
+                    <strong style="font-size: 0.92rem; color: var(--text-main); display: block;">磁盘空间健康诊断</strong>
+                    <span style="font-size: 0.76rem; color: var(--text-muted);">自动豁免 1 小时内活跃上传与 5 分钟内新视频，杜绝并发误删</span>
+                  </div>
+                  <button type="button" class="btn btn-primary" id="btnScanOrphans" style="display: inline-flex; align-items: center; gap: 6px; padding: 0.45rem 1rem;">
+                    <span id="scanOrphansSpinner" style="display:none;">⏳</span>
+                    <span id="scanOrphansBtnText">🔍 立即深度扫描</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Orphan Scan Result Box -->
+              <div id="orphanScanResultBox" style="display: none; background: var(--bg-card); padding: 1.1rem; border-radius: 10px; border: 1px solid var(--border-subtle);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.75rem;">
+                  <div>
+                    <span style="font-size: 0.88rem; font-weight: 600; color: var(--text-main);" id="orphanScanSummaryText">扫描完成</span>
+                    <p style="margin: 0.2rem 0 0 0; font-size: 0.76rem; color: var(--text-muted);">仅清理脱离任务数据库管理的孤立数据</p>
+                  </div>
+                  <div style="text-align: right;">
+                    <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">预计可释放空间</span>
+                    <strong style="font-size: 1.15rem; color: var(--accent-danger);" id="orphanReclaimableSize">0 MB</strong>
+                  </div>
+                </div>
+
+                <div id="orphanCategoryGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 1.25rem;">
+                  <!-- Populated by JS -->
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                  <button type="button" class="btn btn-danger" id="btnCleanOrphans" style="display: none; padding: 0.5rem 1.25rem; font-weight: 600;">
+                    🗑️ 彻底清理释放空间
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. Auth & API-Key Settings View (Secondary) -->
+          <div class="settings-view" id="viewSettingsAuth">
+            <div class="modal-body">
+              <div class="auth-section-info">
+                <div class="auth-status-badge" id="authStatusBadge">
+                  <span class="status-dot"></span>
+                  <span id="authStatusText">检测中...</span>
+                </div>
+                <p class="auth-status-desc" id="authStatusDesc">SlimBox 支持轻量 API Key 鉴权。配置密钥后所有转码、预设与管理接口将受到鉴权保护。</p>
+              </div>
+
+              <!-- Active Tokens List -->
+              <div class="token-list-container">
+                <div class="token-list-header">
+                  <strong>活跃密钥列表</strong>
+                  <button class="btn btn-sm btn-secondary" id="btnRefreshTokens">🔄 刷新</button>
+                </div>
+                <p style="font-size: 0.78rem; color: var(--text-muted); margin: 0 0 8px 0;">
+                  🔒 遵循安全规范：完整 API Key 仅在初次生成时展示一次。若密钥遗失请撤回并重新生成。
+                </p>
+                <div class="token-list" id="activeTokensList">
+                  <!-- Rendered by JS -->
+                </div>
+              </div>
+
+              <!-- Generate New Token Form -->
+              <div class="create-token-box">
+                <strong>生成新密钥</strong>
+                <div class="create-token-row">
+                  <input type="text" id="newTokenLabel" class="ctrl-input" placeholder="输入密钥用途 (如: 桌面端 / 自动化脚本)" maxlength="32">
+                  <button class="btn btn-primary" id="btnCreateToken">＋ 生成密钥</button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <!-- Preset Edit Modal -->
+  <div class="modal" id="presetEditModal" style="display: none;">
+    <div class="modal-content preset-modal-content">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <h3 id="presetModalTitle">✏️ 修改档位预设</h3>
+          <span class="p-savings" id="modalEstimatedSavings" title="基于当前参数实时计算的预估体积缩减比例" style="font-size: 0.9rem;">80%⬇</span>
+        </div>
+        <button class="close-btn" id="closePresetModalBtn" title="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-tip">自定义该档位参数后将自动写入 SQLite 数据库，今后提交任务将长期复用：</p>
+        
+        <div class="modal-field-group">
+          <label id="modalCrfTitle">CRF 质量因子: <strong id="modalCrfVal">24</strong> <span class="hint" id="modalCrfHint">(值越大文件越小，18-32)</span></label>
+          <input type="range" id="modalCrf" min="16" max="32" value="24" class="ctrl-slider">
+        </div>
+
+        <div class="modal-field-group" id="modalPresetGroup">
+          <label id="modalPresetTitle">编码速度预设 (Preset)</label>
+          <select id="modalPreset" class="ctrl-select">
+            <option value="ultrafast">ultrafast (极速编码 / 体积最大 / 适合快速预览)</option>
+            <option value="superfast">superfast (超快压制 / 压缩率偏低 / 适合超低功耗设备)</option>
+            <option value="veryfast">veryfast (较快出片 / 压缩比较好 / 性能与体积优选)</option>
+            <option value="faster">faster (轻快编码 / 耗时略增 / 画质与速度平衡)</option>
+            <option value="fast">fast (均衡推荐 / 压缩比优异 / 绝大多数场景首选)</option>
+            <option value="medium">medium (标准慢压 / 极致紧凑 / 耗时显著增加)</option>
+            <option value="slow">slow (超慢精压 / 极限微缩 / 高负载极耗算力)</option>
+          </select>
+        </div>
+
+        <div class="modal-field-group">
+          <label>音频目标码率</label>
+          <select id="modalAudioBitrate" class="ctrl-select">
+            <option value="64k">64 kbps (极限微缩)</option>
+            <option value="96k">96 kbps (剧集够用)</option>
+            <option value="128k">128 kbps (标准立体声)</option>
+            <option value="160k">160 kbps</option>
+            <option value="192k">192 kbps (高保真)</option>
+          </select>
+        </div>
+
+        <div class="modal-field-group">
+          <label>关键帧间隔 (GOP / Keyframe)</label>
+          <select id="modalKeyframe" class="ctrl-select">
+            <option value="2">2 秒 (推荐·流媒体秒开Seek)</option>
+            <option value="4">4 秒 (平衡·画质体积更优)</option>
+            <option value="0">0 (跟随编码器默认·极高压缩比)</option>
+          </select>
+        </div>
+
+        <div class="modal-field-group">
+          <label>内嵌软字幕保留策略</label>
+          <select id="modalSubtitlePolicy" class="ctrl-select">
+            <option value="copy_all" selected>copy_all (保留全部内嵌字幕 · 软字幕无损直通)</option>
+            <option value="drop">drop (丢弃所有字幕 · 追求极致紧凑体积)</option>
+          </select>
+        </div>
+
+        <div class="modal-field-group">
+          <label>视频帧率控制 (FPS)</label>
+          <select id="modalMaxFPS" class="ctrl-select">
+            <option value="30" selected>智能封顶 30 FPS (推荐·极省硬盘，60帧降30帧，<=30帧保持)</option>
+            <option value="0">保持原片帧率 (不设上限)</option>
+            <option value="24">锁定 24 FPS (经典电影胶片)</option>
+            <option value="60">锁定 60 FPS (高动态流畅)</option>
+          </select>
+        </div>
+
+        <div class="modal-field-group">
+          <label>MOOV Atom 头部前置 (FastStart)</label>
+          <div class="pill-switch-group">
+            <label class="pill-switch">
+              <input type="checkbox" id="modalFastStart" checked>
+              <span class="pill-slider"></span>
+              <span class="pill-label-active">开启</span>
+              <span class="pill-label-inactive">关闭</span>
+            </label>
+            <span class="hint" style="margin-left: 8px;">便于浏览器和播放器边下边播</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer preset-modal-footer">
+        <button class="btn btn-secondary" id="cancelPresetModalBtn">取消</button>
+        <button class="btn btn-primary" id="savePresetModalBtn">💾 保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Initial Admin Setup Modal (PIN + Master Password) -->
+  <div class="modal" id="setupModal" style="display: none; z-index: 10002;">
+    <div class="modal-content unlock-modal-content">
+      <div class="modal-header">
+        <h3>🛡️ 初始化安全设置 (SlimBox Setup)</h3>
+      </div>
+      <div class="modal-body">
+        <p class="modal-tip">检测到系统已开启安全模式且未设密码。请输入容器控制台输出的 6 位 PIN 码并设置管理员主密码：</p>
+        <div class="modal-field-group">
+          <label>控制台 6 位 PIN 码 (查看容器控制台日志)</label>
+          <input type="text" id="setupPinInput" class="ctrl-input" placeholder="输入 6 位数字 PIN" maxlength="6" autocomplete="off">
+        </div>
+        <div class="modal-field-group" style="margin-top: 10px;">
+          <label>设置管理员主密码 (至少 6 位)</label>
+          <input type="password" id="setupPasswordInput" class="ctrl-input" placeholder="输入管理员密码" autocomplete="new-password">
+        </div>
+        <div class="unlock-error" id="setupError" style="display: none; color: #ef4444; font-size: 0.85rem; margin-top: 8px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary btn-block" id="btnSubmitSetup">🚀 完成初始化并进入系统</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Access Key / Master Password Unlock Modal -->
+  <div class="modal" id="unlockModal" style="display: none; z-index: 9999;">
+    <div class="modal-content unlock-modal-content">
+      <div class="modal-header">
+        <h3>🔐 管理员登录 (SlimBox Login)</h3>
+      </div>
+      <div class="modal-body">
+        <p class="modal-tip">当前系统已开启安全保护，请输入管理员密码以进入控制台：</p>
+        <div class="modal-field-group">
+          <label>管理员密码</label>
+          <input type="password" id="unlockInput" class="ctrl-input" placeholder="请输入管理员密码 (或 API Key)" autocomplete="current-password">
+        </div>
+        <div class="unlock-error" id="unlockError" style="display: none; color: #ef4444; font-size: 0.85rem; margin-top: 8px;"></div>
+        <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 10px; margin-bottom: 0;">
+          💡 提示：若使用 API Key，也可直接在此输入；若忘记密码可在服务器执行 <code>slimbox-cli admin reset-password &lt;新密码&gt;</code> 快速重置。
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary btn-block" id="btnSubmitUnlock">🔓 登录并解锁</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Token Created Display Modal (One-time copy) -->
+  <div class="modal" id="tokenCreatedModal" style="display: none; z-index: 10000;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>🎉 新密钥已生成</h3>
+        <button class="close-btn" id="closeTokenCreatedBtn" title="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-tip" style="color: #f59e0b;">⚠️ 请立即复制并妥善保存此密钥，关闭后将不再显示完整明文：</p>
+        <div class="token-display-box">
+          <code id="createdTokenText">sb_...</code>
+          <button class="copy-code-btn" id="btnCopyCreatedToken" title="点击复制 API Key" aria-label="点击复制 API Key"><svg class="copy-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Remote CLI Batch Execution Guide Modal (Fullscreen Wide View) -->
+  <div class="modal" id="cliGuideModal" style="display: none; z-index: 10001;">
+    <div class="modal-content cli-guide-modal-content">
+      <div class="modal-header guide-modal-header">
+        <div class="guide-title-box">
+          <div class="guide-title-row">
+            <h3>💻 客户主机命令行 (CLI) 批量压制指南</h3>
+            <span class="guide-header-desc">在您的 PC / 笔记本上执行命令，视频批量推流给 SlimBox 串行转码，随后可安全关机脱机运行</span>
+          </div>
+          <div class="guide-tip-banner">
+            <span id="guideTipBannerText">💡 提示：所有命令均已根据当前服务配置自动生成，点击右侧按钮即可一键复制到终端运行。</span>
+          </div>
+        </div>
+        <div class="guide-header-actions">
+          <div class="guide-os-tabs">
+            <button class="guide-tab-btn active" data-os="windows" title="Windows" aria-label="Windows">
+              <svg class="os-tab-icon" viewBox="0 0 448 512"><path d="M0 93.7l183.6-25.3v177.4H0V93.7zm0 324.6l183.6 25.3V268.4H0v149.9zm203.8 28L448 480V268.4H203.8v177.9zm0-380.6v180.1H448V32L203.8 65.7z"/></svg>
+            </button>
+            <button class="guide-tab-btn" data-os="darwin" title="macOS" aria-label="macOS">
+              <svg class="os-tab-icon" viewBox="0 0 384 512"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>
+            </button>
+            <button class="guide-tab-btn" data-os="linux" title="Linux" aria-label="Linux">
+              <svg class="os-tab-icon" viewBox="0 0 448 512"><path d="M220.8 123.3c1 .5 1.8 1.7 3 1.7 1.1 0 2.8-.4 2.9-1.5.2-1.4-1.9-2.3-3.2-2.9-1.7-.7-3.9-1-5.5-.1-.4.2-.8.7-.6 1.1.3 1.3 2.3 1.1 3.4 1.7zm-21.9 1.7c1.2 0 2-1.2 3-1.7 1.1-.6 3.1-.4 3.5-1.6.2-.4-.2-.9-.6-1.1-1.6-.9-3.8-.6-5.5.1-1.3.6-3.4 1.5-3.2 2.9.1 1 1.8 1.5 2.8 1.4zM420 403.8c-3.6-4-5.3-11.6-7.2-19.7-1.8-8.1-3.9-16.8-10.5-22.4-1.3-1.1-2.6-2.1-4-2.9-1.3-.8-2.7-1.5-4.1-2 9.2-27.3 5.6-54.5-3.7-79.1-11.4-30.1-31.3-56.4-46.5-74.4-17.1-21.5-33.7-41.9-33.4-72C311.1 85.4 315.7.1 234.8 0 132.4-.2 158 103.4 156.9 135.2c-1.7 23.4-6.4 41.8-22.5 64.7-18.9 22.5-45.5 58.8-58.1 96.7-6 17.9-8.8 36.1-6.2 53.3-6.5 5.8-11.4 14.7-16.6 20.2-4.2 4.3-10.3 5.9-17 8.3s-14 6-18.5 14.5c-2.1 3.9-2.8 8.1-2.8 12.4 0 3.9.6 7.9 1.2 11.8 1.2 8.1 2.5 15.7.8 20.8-5.2 14.4-5.9 24.4-2.2 31.7 3.8 7.3 11.4 10.5 20.1 12.3 17.3 3.6 40.8 2.7 59.3 12.5 19.8 10.4 39.9 14.1 55.9 10.4 11.6-2.6 21.1-9.6 25.9-20.2 12.5-.1 26.3-5.4 48.3-6.6 14.9-1.2 33.6 5.3 55.1 4.1.6 2.3 1.4 4.6 2.5 6.7v.1c8.3 16.7 23.8 24.3 40.3 23 16.6-1.3 34.1-11 48.3-27.9 13.6-16.4 36-23.2 50.9-32.2 7.4-4.5 13.4-10.1 13.9-18.3.4-8.2-4.4-17.3-15.5-29.7zM223.7 87.3c9.8-22.2 34.2-21.8 44-.4 6.5 14.2 3.6 30.9-4.3 40.4-1.6-.8-5.9-2.6-12.6-4.9 1.1-1.2 3.1-2.7 3.9-4.6 4.8-11.8-.2-27-9.1-27.3-7.3-.5-13.9 10.8-11.8 23-4.1-2-9.4-3.5-13-4.4-1-6.9-.3-14.6 2.9-21.8zM183 75.8c10.1 0 20.8 14.2 19.1 33.5-3.5 1-7.1 2.5-10.2 4.6 1.2-8.9-3.3-20.1-9.6-19.6-8.4.7-9.8 21.2-1.8 28.1 1 .8 1.9-.2-5.9 5.5-15.6-14.6-10.5-52.1 8.4-52.1zm-13.6 60.7c6.2-4.6 13.6-10 14.1-10.5 4.7-4.4 13.5-14.2 27.9-14.2 7.1 0 15.6 2.3 25.9 8.9 6.3 4.1 11.3 4.4 22.6 9.3 8.4 3.5 13.7 9.7 10.5 18.2-2.6 7.1-11 14.4-22.7 18.1-11.1 3.6-19.8 16-38.2 14.9-3.9-.2-7-1-9.6-2.1-8-3.5-12.2-10.4-20-15-8.6-4.8-13.2-10.4-14.7-15.3-1.4-4.9 0-9 4.2-12.3zm3.3 334c-2.7 35.1-43.9 34.4-75.3 18-29.9-15.8-68.6-6.5-76.5-21.9-2.4-4.7-2.4-12.7 2.6-26.4v-.2c2.4-7.6.6-16-.6-23.9-1.2-7.8-1.8-15 .9-20 3.5-6.7 8.5-9.1 14.8-11.3 10.3-3.7 11.8-3.4 19.6-9.9 5.5-5.7 9.5-12.9 14.3-18 5.1-5.5 10-8.1 17.7-6.9 8.1 1.2 15.1 6.8 21.9 16l19.6 35.6c9.5 19.9 43.1 48.4 41 68.9zm-1.4-25.9c-4.1-6.6-9.6-13.6-14.4-19.6 7.1 0 14.2-2.2 16.7-8.9 2.3-6.2 0-14.9-7.4-24.9-13.5-18.2-38.3-32.5-38.3-32.5-13.5-8.4-21.1-18.7-24.6-29.9s-3-23.3-.3-35.2c5.2-22.9 18.6-45.2 27.2-59.2 2.3-1.7.8 3.2-8.7 20.8-8.5 16.1-24.4 53.3-2.6 82.4.6-20.7 5.5-41.8 13.8-61.5 12-27.4 37.3-74.9 39.3-112.7 1.1.8 4.6 3.2 6.2 4.1 4.6 2.7 8.1 6.7 12.6 10.3 12.4 10 28.5 9.2 42.4 1.2 6.2-3.5 11.2-7.5 15.9-9 9.9-3.1 17.8-8.6 22.3-15 7.7 30.4 25.7 74.3 37.2 95.7 6.1 11.4 18.3 35.5 23.6 64.6 3.3-.1 7 .4 10.9 1.4 13.8-35.7-11.7-74.2-23.3-84.9-4.7-4.6-4.9-6.6-2.6-6.5 12.6 11.2 29.2 33.7 35.2 59 2.8 11.6 3.3 23.7.4 35.7 16.4 6.8 35.9 17.9 30.7 34.8-2.2-.1-3.2 0-4.2 0 3.2-10.1-3.9-17.6-22.8-26.1-19.6-8.6-36-8.6-38.3 12.5-12.1 4.2-18.3 14.7-21.4 27.3-2.8 11.2-3.6 24.7-4.4 39.9-.5 7.7-3.6 18-6.8 29-32.1 22.9-76.7 32.9-114.3 7.2zm257.4-11.5c-.9 16.8-41.2 19.9-63.2 46.5-13.2 15.7-29.4 24.4-43.6 25.5s-26.5-4.8-33.7-19.3c-4.7-11.1-2.4-23.1 1.1-36.3 3.7-14.2 9.2-28.8 9.9-40.6.8-15.2 1.7-28.5 4.2-38.7 2.6-10.3 6.6-17.2 13.7-21.1.3-.2.7-.3 1-.5.8 13.2 7.3 26.6 18.8 29.5 12.6 3.3 30.7-7.5 38.4-16.3 9-.3 15.7-.9 22.6 5.1 9.9 8.5 7.1 30.3 17.1 41.6 10.6 11.6 14 19.5 13.7 24.6zM173.3 148.7c2 1.9 4.7 4.5 8 7.1 6.6 5.2 15.8 10.6 27.3 10.6 11.6 0 22.5-5.9 31.8-10.8 4.9-2.6 10.9-7 14.8-10.4s5.9-6.3 3.1-6.6-2.6 2.6-6 5.1c-4.4 3.2-9.7 7.4-13.9 9.8-7.4 4.2-19.5 10.2-29.9 10.2s-18.7-4.8-24.9-9.7c-3.1-2.5-5.7-5-7.7-6.9-1.5-1.4-1.9-4.6-4.3-4.9-1.4-.1-1.8 3.7 1.7 6.5z"/></svg>
+            </button>
+          </div>
+          <button class="close-btn guide-close-btn-red" id="closeCliGuideBtn" title="关闭指南">✕</button>
+        </div>
+      </div>
+      <div class="modal-body cli-guide-body">
+
+        <!-- 2x2 Symmetrical Grid Layout: Step 1 (Top-L) & Step 2 (Top-R) | Step 3 (Btm-L) & Step 4 (Btm-R) -->
+        <div class="guide-grid-layout">
+          <!-- Step 1: Direct Download (Top-Left) -->
+          <div class="guide-step-card download-step-card">
+            <div class="step-badge">步骤 1</div>
+            <div class="step-main">
+              <h4 class="step-title">获取客户端程序 (免安装直接运行)</h4>
+              <p class="step-desc">选择您的主机架构，点击下方按钮直接下载到本机：</p>
+              
+              <!-- 仅选定架构，不触发下载，无小字文案 -->
+              <div class="arch-selector-group" id="guideArchSelector">
+                <!-- 由 JS 根据操作系统动态生成架构选项 -->
+              </div>
+
+              <!-- 正式触发下载按钮 -->
+              <div class="download-trigger-area">
+                <a href="#" class="btn btn-primary cli-download-btn" id="btnTriggerDownload" download>
+                  <span class="btn-icon">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                      <polyline points="7 10 12 15 17 10"></polyline>
+                      <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                  </span>
+                  <span class="btn-text">
+                    <strong id="triggerDownloadTitle">立即下载程序</strong>
+                  </span>
+                </a>
+              </div>
+
+              <div class="snippet-subgroup" style="margin-top: 0.6rem;">
+                <span class="snippet-sublabel">无桌面客户机亦可在终端一键下载到当前目录：</span>
+                <div class="code-block-card">
+                  <pre><code class="code-snippet" id="snippetDownload">curl -O ...</code></pre>
+                  <button class="copy-code-btn" data-target="snippetDownload" title="点击复制命令" aria-label="点击复制命令"><svg class="copy-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2: Push Workflow (Top-Right) -->
+          <div class="guide-step-card push-feature-card">
+            <div class="step-badge">步骤 2</div>
+            <div class="step-main">
+              <h4 class="step-title">批量推送视频入队并安全关机 (<code>push</code>)</h4>
+              <p class="step-desc">将待压缩文件逐个流式上传至服务端排队。<strong style="color: var(--accent-cyan);">上传入队完毕后 CLI 将自动退出，此时您的客户主机可关机或睡眠</strong>，SlimBox 独立串行压制：</p>
+              
+              <div class="snippet-subgroup">
+                <span class="snippet-sublabel">A. 多个视频文件直接传入 (支持引号包裹含空格路径)：</span>
+                <div class="code-block-card">
+                  <pre><code class="code-snippet" id="snippetPushFiles">.\slimbox-cli.exe push -s "{SERVER_URL}" -p 720p "D:\Videos\ep01.mp4" "D:\Videos\ep02.mkv"</code></pre>
+                  <button class="copy-code-btn" data-target="snippetPushFiles" title="点击复制命令" aria-label="点击复制命令"><svg class="copy-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button>
+                </div>
+              </div>
+
+              <div class="snippet-subgroup">
+                <span class="snippet-sublabel">B. 待压缩视频清单文本文件 (<code>-f</code>，每行一个路径，自动忽略 # 注释)：</span>
+                <div class="code-block-card">
+                  <pre><code class="code-snippet" id="snippetPushList">.\slimbox-cli.exe push -s "{SERVER_URL}" -p 1080p -f "D:\my_series.txt"</code></pre>
+                  <button class="copy-code-btn" data-target="snippetPushList" title="点击复制命令" aria-label="点击复制命令"><svg class="copy-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button>
+                </div>
+              </div>
+
+              <div class="snippet-subgroup">
+                <span class="snippet-sublabel">C. 显式覆盖参数 (更高优先级，如自定义 CRF 与编码器)：</span>
+                <div class="code-block-card">
+                  <pre><code class="code-snippet" id="snippetPushOverride">.\slimbox-cli.exe push -s "{SERVER_URL}" -p 720p --crf 26 --codec libx265 -f list.txt</code></pre>
+                  <button class="copy-code-btn" data-target="snippetPushOverride" title="点击复制命令" aria-label="点击复制命令"><svg class="copy-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 3: Status, Abort, Retry & Reorder (Bottom-Left) -->
+          <div class="guide-step-card">
+            <div class="step-badge">步骤 3</div>
+            <div class="step-main">
+              <h4 class="step-title">任务管控：进度 · 终止 · 继续 · 调序</h4>
+              <p class="step-desc">无需常驻浏览器，在终端随时掌握转码进度、排队顺序，并可精准干预任务：</p>
+              
+              <div class="snippet-subgroup">
+                <span class="snippet-sublabel">A. 查询排队与当前转码进度 (获取 <code>task-id</code>)：</span>
+                <div class="code-block-card">
+                  <pre><code class="code-snippet" id="snippetStatus">.\slimbox-cli.exe status -s "{SERVER_URL}"</code></pre>
+                  <button class="copy-code-btn" data-target="snippetStatus" title="点击复制命令" aria-label="点击复制命令"><svg class="copy-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button>
+                </div>
+              </div>
+
+              <div class="snippet-subgroup">
+                <span class="snippet-sublabel">B. 立即终止正在运行的任务并释放资源 (<code>abort</code>)：</span>
+                <div class="code-block-card">
+                  <pre><code class="code-snippet" id="snippetAbort">.\slimbox-cli.exe abort -s "{SERVER_URL}" &lt;task-id&gt;</code></pre>
+                  <button class="copy-code-btn" data-target="snippetAbort" title="点击复制命令" aria-label="点击复制命令"><svg class="copy-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button>
+                </div>
+              </div>
+
+              <div class="snippet-subgroup">
+                <span class="snippet-sublabel">C. 继续或重试已终止/失败任务 (<code>retry</code>)：</span>
+                <div class="code-block-card">
+                  <pre><code class="code-snippet" id="snippetRetry">.\slimbox-cli.exe retry -s "{SERVER_URL}" &lt;task-id&gt;</code></pre>
+                  <button class="copy-code-btn" data-target="snippetRetry" title="点击复制命令" aria-label="点击复制命令"><svg class="copy-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button>
+                </div>
+              </div>
+
+              <div class="snippet-subgroup">
+                <span class="snippet-sublabel">D. 调整排队顺序 (一键置顶 <code>top</code> / 置底 <code>bottom</code>)：</span>
+                <div class="code-block-card">
+                  <pre><code class="code-snippet" id="snippetOrder">.\slimbox-cli.exe top -s "{SERVER_URL}" &lt;task-id&gt;</code></pre>
+                  <button class="copy-code-btn" data-target="snippetOrder" title="点击复制命令" aria-label="点击复制命令"><svg class="copy-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 4: Pull Workflow (Bottom-Right) -->
+          <div class="guide-step-card">
+            <div class="step-badge">步骤 4</div>
+            <div class="step-main">
+              <h4 class="step-title">随时批量拉取转码成品回本地 (<code>pull</code>)</h4>
+              <p class="step-desc">任意时刻（如次日开机）执行拉取命令，将所有已完成的视频批量拉取至本地；加上 <code>--clean</code> 可在下载成功后自动清理服务端原片与成品：</p>
+              <div class="code-block-card">
+                <pre><code class="code-snippet" id="snippetPull">.\slimbox-cli.exe pull -s "{SERVER_URL}" -o "D:\Compressed" --clean</code></pre>
+                <button class="copy-code-btn" data-target="snippetPull" title="点击复制命令" aria-label="点击复制命令"><svg class="copy-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js?v=20260930_05"></script>
 </body>
 </html>

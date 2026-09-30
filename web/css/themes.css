@@ -1,0 +1,332 @@
+:root {
+  --bg-gradient: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  --card-bg: rgba(255, 255, 255, 0.9);
+  --card-border: rgba(2, 132, 199, 0.2);
+  --bg-card: var(--card-bg);
+  --bg-card-hover: rgba(255, 255, 255, 0.98);
+  --bg-input: rgba(241, 245, 249, 0.85);
+  --border-subtle: var(--card-border);
+  --border-active: #0284c7;
+  --card-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+  
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --text-dim: #64748b;
+
+  --accent-cyan: #0284c7;
+  --accent-cyan-glow: rgba(2, 132, 199, 0.25);
+  --accent-purple: #64748b;
+  --accent-danger: #ef4444;
+  --accent-danger-glow: rgba(239, 68, 68, 0.25);
+  --accent-amber: #f59e0b;
+  --accent-emerald: #10b981;
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 1. 🌌 暗色霓虹 (默认) */
+:root.theme-dark-neon {
+  --bg-gradient: linear-gradient(135deg, #070f1e 0%, #0d1e36 50%, #152b4a 100%);
+  --card-bg: rgba(13, 27, 49, 0.65);
+  --card-border: rgba(96, 165, 250, 0.2);
+  --bg-card: var(--card-bg);
+  --bg-card-hover: rgba(20, 39, 70, 0.75);
+  --bg-input: rgba(7, 15, 30, 0.6);
+  --border-subtle: var(--card-border);
+  --border-active: rgba(139, 92, 246, 0.6);
+  --card-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --text-dim: #64748b;
+  --accent-cyan: #8b5cf6;
+  --accent-cyan-glow: rgba(139, 92, 246, 0.35);
+  --accent-purple: #c084fc;
+}
+
+/* 2. ☀️ 温暖浅沙 */
+:root.theme-light-warm {
+  --bg-gradient: linear-gradient(135deg, #fefaf6 0%, #f3e9dc 100%);
+  --card-bg: rgba(255, 255, 255, 0.85);
+  --card-border: rgba(217, 119, 6, 0.2);
+  --bg-card: var(--card-bg);
+  --bg-card-hover: rgba(255, 255, 255, 0.95);
+  --bg-input: rgba(254, 250, 246, 0.85);
+  --border-subtle: var(--card-border);
+  --border-active: #ea580c;
+  --card-shadow: 0 10px 25px rgba(120, 53, 15, 0.08);
+  --text-main: #451a03;
+  --text-muted: #78350f;
+  --text-dim: #92400e;
+  --accent-cyan: #ea580c;
+  --accent-cyan-glow: rgba(234, 88, 12, 0.25);
+  --accent-purple: #d97706;
+}
+
+/* 3. ❄️ 极简冷灰 */
+:root.theme-nordic-cool {
+  --bg-gradient: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  --card-bg: rgba(255, 255, 255, 0.9);
+  --card-border: rgba(2, 132, 199, 0.2);
+  --bg-card: var(--card-bg);
+  --bg-card-hover: rgba(255, 255, 255, 0.98);
+  --bg-input: rgba(241, 245, 249, 0.85);
+  --border-subtle: var(--card-border);
+  --border-active: #0284c7;
+  --card-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --text-dim: #64748b;
+  --accent-cyan: #0284c7;
+  --accent-cyan-glow: rgba(2, 132, 199, 0.25);
+  --accent-purple: #64748b;
+}
+
+/* 4. 🌲 深邃苍林 */
+:root.theme-deep-forest {
+  --bg-gradient: linear-gradient(135deg, #05160e 0%, #0a2f1d 100%);
+  --card-bg: rgba(6, 78, 59, 0.4);
+  --card-border: rgba(52, 211, 153, 0.15);
+  --bg-card: var(--card-bg);
+  --bg-card-hover: rgba(6, 78, 59, 0.55);
+  --bg-input: rgba(5, 22, 14, 0.6);
+  --border-subtle: var(--card-border);
+  --border-active: #34d399;
+  --card-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+  --text-main: #ecfdf5;
+  --text-muted: #6ee7b7;
+  --text-dim: #34d399;
+  --accent-cyan: #10b981;
+  --accent-cyan-glow: rgba(16, 185, 129, 0.3);
+  --accent-purple: #34d399;
+}
+
+/* 5. 💚 极光幻夜 */
+:root.theme-aurora-night {
+  --bg-gradient: linear-gradient(135deg, #020617 0%, #0b1528 100%);
+  --card-bg: rgba(15, 23, 42, 0.45);
+  --card-border: rgba(6, 182, 212, 0.15);
+  --bg-card: var(--card-bg);
+  --bg-card-hover: rgba(15, 23, 42, 0.6);
+  --bg-input: rgba(2, 6, 23, 0.6);
+  --border-subtle: var(--card-border);
+  --border-active: #06b6d4;
+  --card-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+  --text-main: #ecfeff;
+  --text-muted: #22d3ee;
+  --text-dim: #0284c7;
+  --accent-cyan: #06b6d4;
+  --accent-cyan-glow: rgba(6, 182, 212, 0.3);
+  --accent-purple: #38bdf8;
+}
+
+/* 6. 💜 罗兰紫幻 */
+:root.theme-violet-dream {
+  --bg-gradient: linear-gradient(135deg, #0f0728 0%, #1c0e46 100%);
+  --card-bg: rgba(28, 14, 70, 0.4);
+  --card-border: rgba(168, 85, 247, 0.15);
+  --bg-card: var(--card-bg);
+  --bg-card-hover: rgba(28, 14, 70, 0.55);
+  --bg-input: rgba(15, 7, 40, 0.6);
+  --border-subtle: var(--card-border);
+  --border-active: #a855f7;
+  --card-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+  --text-main: #f5f3ff;
+  --text-muted: #a78bfa;
+  --text-dim: #7c3aed;
+  --accent-cyan: #a855f7;
+  --accent-cyan-glow: rgba(168, 85, 247, 0.3);
+  --accent-purple: #c084fc;
+}
+
+/* 7. 🌸 樱粉蜜桃 */
+:root.theme-sakura-peach {
+  --bg-gradient: linear-gradient(135deg, #fff5f5 0%, #ffe3e3 100%);
+  --card-bg: rgba(255, 255, 255, 0.8);
+  --card-border: rgba(236, 72, 153, 0.2);
+  --bg-card: var(--card-bg);
+  --bg-card-hover: rgba(255, 255, 255, 0.95);
+  --bg-input: rgba(255, 245, 245, 0.85);
+  --border-subtle: var(--card-border);
+  --border-active: #ec4899;
+  --card-shadow: 0 10px 25px rgba(236, 72, 153, 0.08);
+  --text-main: #500e2e;
+  --text-muted: #9d174d;
+  --text-dim: #be123c;
+  --accent-cyan: #ec4899;
+  --accent-cyan-glow: rgba(236, 72, 153, 0.25);
+  --accent-purple: #f43f5e;
+}
+
+/* 8. 🍁 枫叶秋枫 */
+:root.theme-autumn-maple {
+  --bg-gradient: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  --card-bg: rgba(255, 255, 255, 0.8);
+  --card-border: rgba(194, 65, 12, 0.2);
+  --bg-card: var(--card-bg);
+  --bg-card-hover: rgba(255, 255, 255, 0.95);
+  --bg-input: rgba(255, 251, 235, 0.85);
+  --border-subtle: var(--card-border);
+  --border-active: #c2410c;
+  --card-shadow: 0 10px 25px rgba(194, 65, 12, 0.08);
+  --text-main: #451a03;
+  --text-muted: #7c2d12;
+  --text-dim: #9a3412;
+  --accent-cyan: #c2410c;
+  --accent-cyan-glow: rgba(194, 65, 12, 0.25);
+  --accent-purple: #ea580c;
+}
+
+/* 9. 🍭 马卡龙粉 */
+:root.theme-macaron-pink {
+  --bg-gradient: linear-gradient(135deg, #fff0f5 0%, #ffd1dc 100%);
+  --card-bg: rgba(255, 255, 255, 0.85);
+  --card-border: rgba(244, 114, 182, 0.2);
+  --bg-card: var(--card-bg);
+  --bg-card-hover: rgba(255, 255, 255, 0.98);
+  --bg-input: rgba(255, 240, 245, 0.85);
+  --border-subtle: var(--card-border);
+  --border-active: #ec4899;
+  --card-shadow: 0 10px 25px rgba(244, 114, 182, 0.08);
+  --text-main: #5c1d3c;
+  --text-muted: #833a62;
+  --text-dim: #9d174d;
+  --accent-cyan: #ec4899;
+  --accent-cyan-glow: rgba(236, 72, 153, 0.25);
+  --accent-purple: #f472b6;
+}
+
+/* 10. 🌊 马卡龙蓝 */
+:root.theme-macaron-blue {
+  --bg-gradient: linear-gradient(135deg, #f0f8ff 0%, #c4e1ff 100%);
+  --card-bg: rgba(255, 255, 255, 0.85);
+  --card-border: rgba(96, 165, 250, 0.2);
+  --bg-card: var(--card-bg);
+  --bg-card-hover: rgba(255, 255, 255, 0.98);
+  --bg-input: rgba(240, 248, 255, 0.85);
+  --border-subtle: var(--card-border);
+  --border-active: #3b82f6;
+  --card-shadow: 0 10px 25px rgba(59, 130, 246, 0.08);
+  --text-main: #0c325c;
+  --text-muted: #1d4ed8;
+  --text-dim: #2563eb;
+  --accent-cyan: #38bdf8;
+  --accent-cyan-glow: rgba(56, 189, 248, 0.25);
+  --accent-purple: #2563eb;
+}
+
+/* 11. 🍃 马卡龙绿 */
+:root.theme-macaron-green {
+  --bg-gradient: linear-gradient(135deg, #f0fff0 0%, #c2ffd2 100%);
+  --card-bg: rgba(255, 255, 255, 0.85);
+  --card-border: rgba(52, 211, 153, 0.2);
+  --bg-card: var(--card-bg);
+  --bg-card-hover: rgba(255, 255, 255, 0.98);
+  --bg-input: rgba(240, 255, 240, 0.85);
+  --border-subtle: var(--card-border);
+  --border-active: #10b981;
+  --card-shadow: 0 10px 25px rgba(16, 185, 129, 0.08);
+  --text-main: #0c5c32;
+  --text-muted: #047857;
+  --text-dim: #059669;
+  --accent-cyan: #10b981;
+  --accent-cyan-glow: rgba(16, 185, 129, 0.25);
+  --accent-purple: #4ade80;
+}
+
+/* 12. 🍌 马卡龙黄 */
+:root.theme-macaron-yellow {
+  --bg-gradient: linear-gradient(135deg, #fffff0 0%, #fff6c2 100%);
+  --card-bg: rgba(255, 255, 255, 0.85);
+  --card-border: rgba(234, 179, 8, 0.2);
+  --bg-card: var(--card-bg);
+  --bg-card-hover: rgba(255, 255, 255, 0.98);
+  --bg-input: rgba(255, 255, 240, 0.85);
+  --border-subtle: var(--card-border);
+  --border-active: #ca8a04;
+  --card-shadow: 0 10px 25px rgba(202, 138, 4, 0.08);
+  --text-main: #5c520c;
+  --text-muted: #7e6b04;
+  --text-dim: #a16207;
+  --accent-cyan: #ca8a04;
+  --accent-cyan-glow: rgba(202, 138, 4, 0.25);
+  --accent-purple: #facc15;
+}
+
+/* 13. 🍇 马卡龙紫 */
+:root.theme-macaron-purple {
+  --bg-gradient: linear-gradient(135deg, #faf0e6 0%, #e6cbff 100%);
+  --card-bg: rgba(255, 255, 255, 0.85);
+  --card-border: rgba(192, 132, 252, 0.2);
+  --bg-card: var(--card-bg);
+  --bg-card-hover: rgba(255, 255, 255, 0.98);
+  --bg-input: rgba(250, 240, 230, 0.85);
+  --border-subtle: var(--card-border);
+  --border-active: #8b5cf6;
+  --card-shadow: 0 10px 25px rgba(139, 92, 246, 0.08);
+  --text-main: #4c055c;
+  --text-muted: #6d28d9;
+  --text-dim: #7c3aed;
+  --accent-cyan: #8b5cf6;
+  --accent-cyan-glow: rgba(139, 92, 246, 0.25);
+  --accent-purple: #c084fc;
+}
+
+/* 14. 🍊 马卡龙橙 */
+:root.theme-macaron-orange {
+  --bg-gradient: linear-gradient(135deg, #fffaf0 0%, #ffd8b3 100%);
+  --card-bg: rgba(255, 255, 255, 0.85);
+  --card-border: rgba(251, 146, 60, 0.2);
+  --bg-card: var(--card-bg);
+  --bg-card-hover: rgba(255, 255, 255, 0.98);
+  --bg-input: rgba(255, 250, 240, 0.85);
+  --border-subtle: var(--card-border);
+  --border-active: #f97316;
+  --card-shadow: 0 10px 25px rgba(249, 115, 22, 0.08);
+  --text-main: #5c2a0c;
+  --text-muted: #c2410c;
+  --text-dim: #9a3412;
+  --accent-cyan: #f97316;
+  --accent-cyan-glow: rgba(249, 115, 22, 0.25);
+  --accent-purple: #fb923c;
+}
+
+/* 15. 🦾 暗色赛博 */
+:root.theme-dark-cyber {
+  --bg-gradient: linear-gradient(135deg, #09090b 0%, #030712 100%);
+  --card-bg: rgba(17, 24, 39, 0.5);
+  --card-border: rgba(244, 63, 94, 0.15);
+  --bg-card: var(--card-bg);
+  --bg-card-hover: rgba(24, 33, 53, 0.65);
+  --bg-input: rgba(9, 9, 11, 0.6);
+  --border-subtle: var(--card-border);
+  --border-active: #00f0ff;
+  --card-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  --text-main: #f4f4f5;
+  --text-muted: #a1a1aa;
+  --text-dim: #71717a;
+  --accent-cyan: #00f0ff;
+  --accent-cyan-glow: rgba(0, 240, 255, 0.35);
+  --accent-purple: #f43f5e;
+}
+
+/* 16. 🖤 黑曜石暗 */
+:root.theme-dark-obsidian {
+  --bg-gradient: linear-gradient(135deg, #18181b 0%, #09090b 100%);
+  --card-bg: rgba(24, 24, 27, 0.5);
+  --card-border: rgba(255, 255, 255, 0.05);
+  --bg-card: var(--card-bg);
+  --bg-card-hover: rgba(39, 39, 42, 0.65);
+  --bg-input: rgba(24, 24, 27, 0.6);
+  --border-subtle: var(--card-border);
+  --border-active: rgba(251, 191, 36, 0.5);
+  --card-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --text-dim: #64748b;
+  --accent-cyan: #fbbf24;
+  --accent-cyan-glow: rgba(251, 191, 36, 0.25);
+  --accent-purple: #f59e0b;
+}

@@ -32,6 +32,22 @@ func TestFactoryPresets_ResolutionMatrix(t *testing.T) {
 		if p.DefaultParams.SubtitlePolicy != "copy_all" {
 			t.Errorf("Preset %s default subtitle policy must be copy_all, got %s", name, p.DefaultParams.SubtitlePolicy)
 		}
+
+		if !p.DefaultParams.ShouldFastStart() {
+			t.Errorf("Preset %s should have FastStart enabled by default", name)
+		}
+
+		if p.DefaultParams.EffectiveKeyframeInterval() != 2 {
+			t.Errorf("Preset %s should default to 2s keyframe interval, got %d", name, p.DefaultParams.EffectiveKeyframeInterval())
+		}
+	}
+
+	p1080 := GetPresetByName("1080p")
+	if p1080.DefaultParams.CRF != 24 {
+		t.Errorf("Expected 1080p CRF to be 24, got %d", p1080.DefaultParams.CRF)
+	}
+	if p1080.DefaultParams.AudioBitrate != "128k" {
+		t.Errorf("Expected 1080p audio bitrate 128k, got %s", p1080.DefaultParams.AudioBitrate)
 	}
 }
 

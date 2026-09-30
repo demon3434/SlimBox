@@ -32,9 +32,22 @@ _Avoid_: User config, settings JSON
 允许用户在 Web UI 或 CLI 随时终止正在运行的 FFmpeg 转码进程，安全回收系统 CPU/内存资源并清理未完成的残片文件。
 _Avoid_: Kill switch, force quit
 
-**Optional Auth Gateway (可选鉴权网关)**:
-通过环境变量或配置启用的内网/外网访问凭证机制，支持局域网免密直接使用，或配合 API Key / 访问密码保护接口。
-_Avoid_: Hardcoded auth, single sign-on
+**Dual-Mode Auth Gateway (双模鉴权网关)**:
+通过环境变量显式控制的安全边界网关，支持全站彻底免密的开放模式（适用于纯内网极客场景）与具备根信任、角色隔离的严格安全模式，彻底杜绝运行时基于记录数的静默降级（Fail-Open）。
+_Avoid_: Dynamic fallback, auto-open auth
+
+**Root of Trust (根信任与管理员主密码)**:
+系统的最高管理凭据，采用强哈希（Bcrypt）持久化保存，拥有管理配置、签发/吊销访问令牌和调整底层硬件策略的唯一特权，支持环境变量预置或启动日志 PIN 码防抢注初始化。
+_Avoid_: Superuser account, master token
+
+**API Access Token (派生 API 访问令牌)**:
+由管理员签发给 CLI 命令行、自动化脚本或外部受控设备的轻量级访问凭证，仅具备转码业务与任务队列操作权限，严格禁止访问系统管理端点。
+_Avoid_: Admin key, secret password
+
+**Role-Based Access Control (RBAC 角色权限控制)**:
+基于 `admin` 与 `user` 角色的严格端点隔离机制，`admin` 负责运维与密钥管控，`user` 仅限于提交与管理自身压制任务。
+_Avoid_: Flat permissions, open endpoints
+
 
 **Advanced Parameter Canvas (高级自定义参数画布)**:
 针对高级用户的调参面板，支持对视频编码、CRF、预设速度、音频编码码率及自定义参数的精细控制。
@@ -64,5 +77,9 @@ _Avoid_: Log file, history
 **CLI Client (命令行客户端)**:
 运行在外部操作端（如 PC）的非图形化工具，通过网络 API 与 SlimBox 服务通信，执行批量视频的逐个上传、排队监控与结果下载。
 _Avoid_: Script, daemon
+
+**Glassmorphic Dialog System (统一沉浸式弹窗规范)**:
+前端 Web 界面全面禁用浏览器原生 `alert()` 与 `confirm()`，统一采用符合毛玻璃视觉风格的高级自定义弹窗与轻量 Toast 通知（`web/js/modules/dialog.js`），支持异步 Promise 响应、快捷键（Enter/Esc）与危险操作视觉辨识。
+_Avoid_: Native alert, browser prompt
 
 

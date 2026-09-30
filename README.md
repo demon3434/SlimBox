@@ -1,120 +1,199 @@
-# SlimBox ⚡
+# SlimBox
 
-> 运行在斐讯 N1、树莓派等低功耗 ARM 设备上的极致轻量视频压缩微服务与命令行工具。
+SlimBox 是一个轻量级视频压缩微服务与命令行工具，支持在低功耗设备（如斐讯 N1、树莓派）及 x86 主机（Intel、AMD、NVIDIA 显卡加速）上部署运行。
 
-[![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat&logo=go)](https://golang.org)
-[![Architecture](https://img.shields.io/badge/Arch-linux%2Farm64%20%7C%20amd64-blue)](https://github.com)
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)](https://docker.com)
-
-平时下载的电影电视剧动辄数 GB 到数十 GB，对于仓储和移动观影极具压力。**SlimBox** 专为“只要看得清就行、文件尽量最小”的诉求设计，充分利用斐讯 N1、树莓派等设备常年通电在线的特性，提供 Web 界面与自动化 CLI 客户端。
+通过在后台串行转码，将大体积视频压制为 H.265 或 H.264 格式，在保留全部原始音轨与内嵌软字幕的前提下缩减存储占用。
 
 ---
 
-## 🌟 核心特性与架构原则
+## 功能特性
 
-1. **为受限 ARM 硬件量身定制 (ADR-0001, ADR-0006)**：
-   - 后端使用 Go 静态编译，运行时内存驻留仅 **15~30MB**，无额外解释器开销；
-   - 采用纯 Go 实现的 SQLite（`modernc.org/sqlite`，零 CGO 依赖），ARM64 编译部署极度轻巧；
-   - 依赖本地外挂物理 USB 移动硬盘（`/data` 挂载点），无需 N1 复杂挂载网络文件系统。
-2. **严格单任务串行调度 (ADR-0002)**：
-   - 文件上传与下载并发解耦，但底层 FFmpeg 转码执行器严格保证 **1/1 单任务独占 FIFO 调度**，杜绝 2GB 内存 OOM 与高温死机。
-3. **全分辨率预设矩阵 (360p ~ 4K) (ADR-0003, ADR-0007)**：
-   - 覆盖 360p、480p、720p、1080p、2K、4K 常用电影压制配置；
-   - **默认采用 H.265 (HEVC)** 追求极致文件体积缩减，亦可一键切换为 H.264；
-   - **中立自主选择**：系统绝不帮用户强选默认档位，必须由使用者显式确认；
-   - 支持将自定义参数保存为用户档位预设，或一键恢复出厂默认值。
-4. **全音轨保留与软字幕直通封装 (ADR-0010)**：
-   - 预设档位下**保留源视频包含的所有音频轨道**（原声、国配、导评等），并统一压为紧凑高保真的 AAC 格式；
-   - 所有内嵌软字幕采用 **`-c:s copy` 直通复制**，零画质折损、零多余算力消耗，播放器可任意开关。
-5. **随时中止与半成品残片即时回收 (ADR-0008, ADR-0011)**：
-   - Web 仪表盘与 CLI 均支持**随时强行终止当前运行的任务**；
-   - 无论是手动中止还是源文件损坏导致转码失败，系统立即自动执行**残片清理（物理删除 `.part` 文件）**，不占磁盘空间，并自动调度执行下一个任务。
-6. **非图形化 CLI 批处理与断点跳过 (ADR-0005)**：
-   - 提供独立可执行文件 `slimbox-cli`，支持通过指定目录或视频清单文件，逐个向 N1 自动上传、轮询监控、下载成品回本地；
-   - 本地自动维护 `.slimbox-state.json`，遇到网络闪断或重启可**平滑断点续批**。
+* **完整音轨与字幕保留**：转码过程中默认保留源视频中的所有音频流（重编码为 AAC），内嵌软字幕采用直通封装（`-c:s copy`），避免字幕丢失或重新渲染。
+* **单任务排队调度**：后端严格按 1/1 单任务独占串行调度，避免多任务并发导致低功耗设备或小内存主机出现内存耗尽（OOM）或过热。
+* **硬件加速适配**：
+  * **x86 平台**：支持 Intel QSV / VAAPI、AMD Mesa VAAPI 以及 NVIDIA NVENC 硬件编码，大幅提升转码速率；
+  * **ARM 平台**：多数低功耗 ARM 芯片缺乏通用 H.265 硬件编码器，默认采用 CPU 软编模式，适合长开机、低功耗离线压制。
+* **双操作端支持**：
+  * **Web 仪表盘**：提供深色控制台，支持文件拖拽上传、进度监控、任务终止与成品下载；
+  * **CLI 客户端**：提供跨平台独立可执行文件 `slimbox-cli`，支持对本地目录进行整批视频的自动轮询压制与下载回传。
+* **残片即时回收**：若转码任务中途被手动终止或因文件损坏异常退出，系统自动清理 `.part` 临时文件，避免占用磁盘空间。
 
 ---
 
-## 🚀 快速部署 (Docker / N1 树莓派)
+## 镜像版本选择
 
-### 1. 准备 USB 硬盘挂载点
-在您的斐讯 N1（如 Armbian / OpenWrt 系统）或树莓派上，假设 USB 移动硬盘挂载在 `/mnt/usb_disk`：
+SlimBox 提供针对不同硬件架构与显卡驱动的专用 Docker 镜像：
 
-```bash
-mkdir -p /mnt/usb_disk
+| 镜像 Tag | 目标 CPU 架构 | 驱动与特性说明 | 适用硬件与场景 |
+| :--- | :--- | :--- | :--- |
+| **`:arm64`** | `linux/arm64` | 基础 Alpine + FFmpeg，纯 CPU 软解软编，无冗余 x86 驱动 | 斐讯 N1、树莓派等 ARM64 设备 |
+| **`:intel`** | `linux/amd64` | 集成 Intel Media Driver 与 Libva 驱动 | Intel 4~14 代核显（如 N100、i3/i5）及 Arc 独显 |
+| **`:amd`** | `linux/amd64` | 集成 Mesa VAAPI 驱动 | AMD 锐龙 APU 核显（如 5600G、7840HS）及 Radeon 独显 |
+| **`:nvidia`** | `linux/amd64` | 基于 Debian 构建，包含 NVENC 运行时（需 nvidia-container-toolkit） | 配备 NVIDIA 独立显卡的主机 |
+| **`:latest`**<br>(alias: `:standard`) | `linux/amd64` | 同时包含 Intel 与 AMD VAAPI 驱动 | x86 通用开箱即用版本 |
+
+---
+
+## 部署方法
+
+### 1. 使用 Docker Compose 部署（推荐）
+
+创建 `docker-compose.yml` 文件：
+
+```yaml
+services:
+  slimbox:
+    image: crpi-tyyqcg8a2rpatesk.cn-shanghai.personal.cr.aliyuncs.com/zixidaxian/slimbox:latest
+    container_name: slimbox
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      # 系统盘目录：存放数据库与应用配置
+      - /opt/docker/slimbox/data:/data
+      # 外部存储目录：存放上传的源视频与转码成品
+      - /mnt/usbdata/slimbox/uploads:/data/uploads
+      - /mnt/usbdata/slimbox/outputs:/data/outputs
+    # 若宿主机支持 Intel 或 AMD 硬件加速，取消以下设备映射注释：
+    # devices:
+    #   - /dev/dri:/dev/dri
+    environment:
+      - TZ=Asia/Shanghai
+      - PORT=8080
+      - SLIMBOX_DATA_DIR=/data
+      - SLIMBOX_AUTH_ENABLED=true
+      - SLIMBOX_ADMIN_PASSWORD=
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 ```
 
-### 2. 使用 Docker Compose 一键启动
-
-在项目目录下执行：
-
+在同级目录下启动服务：
 ```bash
 docker compose up -d
 ```
 
-或使用原生 `docker run`：
+### 2. 使用 Docker Run 部署
 
 ```bash
 docker run -d \
   --name slimbox \
   --restart unless-stopped \
   -p 8080:8080 \
-  -v /mnt/usb_disk:/data \
-  slimbox:latest
+  -v /opt/docker/slimbox/data:/data \
+  -v /mnt/usbdata/slimbox/uploads:/data/uploads \
+  -v /mnt/usbdata/slimbox/outputs:/data/outputs \
+  -e TZ=Asia/Shanghai \
+  -e PORT=8080 \
+  -e SLIMBOX_DATA_DIR=/data \
+  -e SLIMBOX_AUTH_ENABLED=true \
+  --device /dev/dri:/dev/dri \
+  crpi-tyyqcg8a2rpatesk.cn-shanghai.personal.cr.aliyuncs.com/zixidaxian/slimbox:latest
 ```
 
-启动完成后，打开浏览器访问：`http://<设备IP>:8080` 即可进入高质感深色 Web 仪表盘。
+### 3. 原生独立运行版（Windows / macOS）
+
+除了容器化部署，SlimBox 亦提供适用于桌面与轻量服务器的原生可执行版本，无需安装 Docker。
+
+#### Windows 版
+* **硬件加速**：自动识别并支持 NVIDIA (NVENC)、Intel (QSV) 与 AMD (AMF) 显卡编码加速；
+* **主要组件**：
+  * `slimbox.exe`：核心服务程序。支持控制台直接运行，或执行 `slimbox.exe service install` 注册为 Windows 系统后台自启服务；
+  * `slimbox-tray.exe`：系统托盘常驻助手，支持存储路径选取并一键调用默认浏览器打开 Web 控制台；
+  * `slimbox-cli.exe`：命令行批量转码工具；
+* **启动运行**：双击运行 `slimbox-tray.exe`，或在 PowerShell / CMD 中执行 `.\slimbox.exe`。
+
+#### macOS 版（Apple Silicon）
+* **硬件加速**：原生调用 M 系列芯片的 VideoToolbox 媒体引擎（`hevc_videotoolbox`），兼顾高转码吞吐与低 CPU 占用；
+* **存储支持**：支持指定外部存储挂载路径（如 `/Volumes/ExternalDrive/slimbox`），降低内置 SSD 擦写损耗；
+* **启动运行**：在终端赋予执行权限后运行 `./slimbox-darwin-arm64`，访问 `http://localhost:8080` 即可。
 
 ---
 
-## 💻 CLI 批处理客户端使用指南
+## 密码配置与重置
 
-`slimbox-cli` 是跨平台单一命令行工具，可在您的 PC 或 Mac 上直接运行，将本地大量剧集/电影自动推送给 N1 转码并取回：
+SlimBox 内置安全鉴权模块（当 `SLIMBOX_AUTH_ENABLED=true` 时启用）。
+
+### 1. 首次启动初始化密码
+
+若未在环境变量中预设密码，服务首次启动时会在控制台生成一个 6 位一次性 PIN 码：
+
+1. 查看容器日志中的 PIN 码：
+   ```bash
+   docker compose logs | grep PIN
+   ```
+   输出示例：
+   ```text
+   [Security] Single-use Web Setup PIN: >>> 648291 <<<
+   ```
+2. 打开 Web 界面（`http://<主机IP>:8080`），在初始化弹窗中输入该 6 位 PIN 码，并设定管理员主密码。
+
+### 2. 重置管理员密码
+
+若遗忘管理员密码，无需重建数据库：
+
+1. 在 `docker-compose.yml` 的 `environment` 中指定新密码：
+   ```yaml
+   environment:
+     - SLIMBOX_AUTH_ENABLED=true
+     - SLIMBOX_ADMIN_PASSWORD=your_new_password
+   ```
+2. 重新加载容器：
+   ```bash
+   docker compose up -d
+   ```
+   服务启动时将自动校验并将主密码重置为指定值。
+
+### 3. 关闭身份验证（免密运行）
+
+在受信任的单人局域网环境下，可将鉴权关闭：
+```yaml
+environment:
+  - SLIMBOX_AUTH_ENABLED=false
+```
+
+---
+
+## 使用说明
+
+### 1. Web 界面操作
+
+1. 浏览器访问 `http://<主机IP>:8080`；
+2. 拖拽视频文件至上传区域；
+3. 选择压缩目标预设档位（如 720p H.265 或 1080p H.265）；
+4. 点击加入排队队列，系统将自动依次执行转码；
+5. 转码完成后，在已完成列表中点击即可直接播放或下载成品文件。
+
+### 2. CLI 命令行批量操作
+
+`slimbox-cli` 可在本地 PC 或 Mac 上直接运行，自动将本地视频批量推送到服务端转码并同步回传成品：
 
 ```bash
-# 1. 批量处理一个本地目录（将 D:\Movies 中的视频逐个推送给 N1 压制为 720p H.265 并取回至 D:\Compressed）
+# 批量处理本地目录
 slimbox-cli batch -s "http://192.168.1.100:8080" \
-                  -d "D:\Movies" \
-                  -o "D:\Compressed" \
+                  -d "/path/to/source_videos" \
+                  -o "/path/to/compressed_output" \
                   --profile 720p
 
-# 2. 指定视频文件清单文本（逐行读取）
-slimbox-cli batch -s "http://192.168.1.100:8080" \
-                  -l "series_list.txt" \
-                  -o "D:\Compressed" \
-                  --profile 1080p
-
-# 3. 查询当前 N1 转码执行器状态与队列
+# 查看服务端转码队列状态
 slimbox-cli status -s "http://192.168.1.100:8080"
 
-# 4. 远程强行中止某个正在转码的任务
+# 中止指定转码任务
 slimbox-cli abort -s "http://192.168.1.100:8080" --task-id <TASK_ID>
 ```
 
 ---
 
-## 📁 目录结构
+## 编译与构建
 
-```
-SlimBox/
-├── cmd/
-│   ├── slimbox/          # 后端服务主入口（内嵌静态 Web 资源）
-│   └── slimbox-cli/      # 命令行批处理客户端
-├── internal/
-│   ├── api/              # RESTful API 路由、中间件与硬件探测器
-│   ├── domain/           # 核心领域模型与 360p~4K 预设矩阵
-│   ├── engine/           # FFprobe 分析器、FFmpeg 封装器与残片清理器
-│   ├── repository/       # 纯 Go SQLite 持久化层
-│   └── scheduler/        # 严格串行单任务 FIFO 队列与存储生命周期管理
-├── web/                  # 现代深色仪表盘（HTML / CSS / Vanilla JS）
-├── docs/
-│   └── adr/              # ADR 架构决策记录 (0001-0011)
-├── Dockerfile            # 多架构 (ARM64/AMD64) 多阶段构建规范
-├── docker-compose.yml    # 容器编排部署文件
-└── CONTEXT.md            # 领域统一通用语言词汇表
-```
+若需从源码自行编译各平台单机程序（Windows、macOS、Linux），或自行构建指定硬件平台的 Docker 镜像，请参阅：
+* [SlimBox 编译与构建指南](docs/build_guide.md)
 
 ---
 
-## 📜 许可协议
-MIT License.
+## 开源协议
+
+本项目采用 [MIT License](LICENSE) 协议开源。
+

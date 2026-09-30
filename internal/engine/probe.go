@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -41,21 +43,39 @@ type ffprobeFormat struct {
 	BitRate    string `json:"bit_rate"`
 }
 
-// ProbeMedia executes ffprobe on the given filePath and returns structured MediaInfo.
+// ProbeMedia executes ffprobe on the given filePath, or seamlessly falls back
+// to ffmpeg -i if ffprobe is absent.
 func ProbeMedia(ctx context.Context, filePath string) (*domain.MediaInfo, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "ffprobe",
+	ffprobePath := FindFFprobe()
+	hasFFprobe := false
+	if _, err := exec.LookPath(ffprobePath); err == nil {
+		hasFFprobe = true
+	} else if fi, err := os.Stat(ffprobePath); err == nil && !fi.IsDir() {
+		hasFFprobe = true
+	}
+
+	if !hasFFprobe {
+		// Fallback to ffmpeg -hide_banner -i (ADR: Eliminate redundant 227MB ffprobe.exe)
+		return probeViaFFmpeg(ctx, FindFFmpeg(), filePath)
+	}
+
+	cmd := PrepareCmd(exec.CommandContext(ctx, ffprobePath,
 		"-v", "quiet",
 		"-print_format", "json",
 		"-show_format",
 		"-show_streams",
 		filePath,
-	)
+	))
 
 	out, err := cmd.Output()
 	if err != nil {
+		// If ffprobe fails, try ffmpeg fallback before giving up
+		if fbInfo, fbErr := probeViaFFmpeg(ctx, FindFFmpeg(), filePath); fbErr == nil {
+			return fbInfo, nil
+		}
 		return nil, fmt.Errorf("ffprobe execution failed on %s: %w", filePath, err)
 	}
 
@@ -156,3 +176,98 @@ func getTagValue(tags map[string]string, keys ...string) string {
 	}
 	return ""
 }
+
+var (
+	reDuration   = regexp.MustCompile(`Duration:\s*(\d{2}):(\d{2}):(\d{2}(?:\.\d+)?)`)
+	reBitrate    = regexp.MustCompile(`bitrate:\s*(\d+)\s*kb/s`)
+	reVideo      = regexp.MustCompile(`Stream #\d+:\d+.*?: Video:\s*([a-zA-Z0-9_\-]+)`)
+	reRes        = regexp.MustCompile(`(\d{2,5})x(\d{2,5})`)
+	reFPS        = regexp.MustCompile(`([\d\.]+)\s*fps`)
+	rePixFmt     = regexp.MustCompile(`(yuv[a-zA-Z0-9_]+)`)
+	reAudio      = regexp.MustCompile(`Stream #\d+:\d+.*?: Audio:\s*([a-zA-Z0-9_\-]+)`)
+	reSampleRate = regexp.MustCompile(`(\d+)\s*Hz`)
+	reChannels   = regexp.MustCompile(`,\s*(stereo|mono|\d+\.\d+)`)
+)
+
+func probeViaFFmpeg(ctx context.Context, ffmpegPath, filePath string) (*domain.MediaInfo, error) {
+	cmd := PrepareCmd(exec.CommandContext(ctx, ffmpegPath, "-hide_banner", "-i", filePath))
+	out, _ := cmd.CombinedOutput()
+	output := string(out)
+
+	info := &domain.MediaInfo{
+		AudioTracks:    make([]domain.MediaAudioStream, 0),
+		SubtitleTracks: make([]domain.MediaSubtitleStream, 0),
+	}
+
+	if fi, err := os.Stat(filePath); err == nil {
+		info.FileSizeBytes = fi.Size()
+	}
+
+	if m := reDuration.FindStringSubmatch(output); len(m) == 4 {
+		h, _ := strconv.ParseFloat(m[1], 64)
+		min, _ := strconv.ParseFloat(m[2], 64)
+		sec, _ := strconv.ParseFloat(m[3], 64)
+		info.DurationSeconds = h*3600 + min*60 + sec
+	}
+
+	if m := reBitrate.FindStringSubmatch(output); len(m) == 2 {
+		kb, _ := strconv.ParseInt(m[1], 10, 64)
+		info.Bitrate = kb * 1000
+	}
+
+	lines := strings.Split(output, "\n")
+	for idx, line := range lines {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "Stream #") {
+			continue
+		}
+
+		if strings.Contains(line, ": Video:") && info.Video == nil {
+			v := &domain.MediaVideoStream{}
+			if m := reVideo.FindStringSubmatch(line); len(m) == 2 {
+				v.CodecName = m[1]
+			}
+			if m := reRes.FindStringSubmatch(line); len(m) == 3 {
+				w, _ := strconv.Atoi(m[1])
+				h, _ := strconv.Atoi(m[2])
+				v.Width = w
+				v.Height = h
+			}
+			if m := reFPS.FindStringSubmatch(line); len(m) == 2 {
+				fps, _ := strconv.ParseFloat(m[1], 64)
+				v.FPS = fps
+			}
+			if m := rePixFmt.FindStringSubmatch(line); len(m) == 2 {
+				v.PixelFormat = m[1]
+			}
+			info.Video = v
+		} else if strings.Contains(line, ": Audio:") {
+			a := domain.MediaAudioStream{
+				Index: idx,
+			}
+			if m := reAudio.FindStringSubmatch(line); len(m) == 2 {
+				a.CodecName = m[1]
+			}
+			if m := reSampleRate.FindStringSubmatch(line); len(m) == 2 {
+				sr, _ := strconv.Atoi(m[1])
+				a.SampleRate = sr
+			}
+			if m := reChannels.FindStringSubmatch(line); len(m) == 2 {
+				a.ChannelLayout = m[1]
+				if m[1] == "stereo" {
+					a.Channels = 2
+				} else if m[1] == "mono" {
+					a.Channels = 1
+				}
+			}
+			info.AudioTracks = append(info.AudioTracks, a)
+		}
+	}
+
+	if info.DurationSeconds == 0 && info.Video == nil {
+		return nil, fmt.Errorf("ffmpeg probe failed to parse media information for %s", filePath)
+	}
+
+	return info, nil
+}
+
