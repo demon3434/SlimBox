@@ -12,6 +12,8 @@ docs/auth_architecture_spec.md
 docs/adr/
 deploy_186.py
 cmd/release/
+scripts/deploy_mac_app.go
+scripts/generate_amd64_dmg.go
 .env
 .env.*
 !.env.example
